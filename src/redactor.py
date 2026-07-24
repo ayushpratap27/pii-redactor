@@ -118,7 +118,6 @@ class PIIRedactor:
             if any(non_pii in ent_txt_upper for non_pii in self.NON_PII_WORDS):
                 continue
             if ent.label_ == "PERSON" and len(ent.text.strip()) > 2:
-                # Discard PERSON tags that contain SSN or TAX ID
                 if not any(kw in ent_txt_upper for kw in ["SSN", "TAX", "ID", "TALUKA"]):
                     ner_spans.append({"start": ent.start_char, "end": ent.end_char, "text": ent.text, "type": "FULL_NAME", "priority": 5})
             elif ent.label_ == "ORG" and len(ent.text.strip()) > 3:
@@ -131,7 +130,6 @@ class PIIRedactor:
     def _resolve_overlaps(self, spans: List[Dict]) -> List[Dict]:
         if not spans:
             return []
-        # Sort by priority DESC, then by span length DESC
         sorted_spans = sorted(spans, key=lambda s: (-s.get("priority", 1), -(s["end"] - s["start"]), s["start"]))
         resolved = []
         for s in sorted_spans:
@@ -139,31 +137,84 @@ class PIIRedactor:
                 resolved.append(s)
         return sorted(resolved, key=lambda s: s["start"])
 
+    def _generate_synthetic_date(self, entity_text: str) -> str:
+        fake_date = self.fake.date_of_birth(minimum_age=20, maximum_age=60)
+        txt_lower = entity_text.lower()
+        
+        # Month name format (e.g., "march 20, 2025")
+        if any(m in txt_lower for m in ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"]):
+            if entity_text.isupper():
+                return fake_date.strftime("%B %d, %Y").upper()
+            elif entity_text.islower():
+                return fake_date.strftime("%B %d, %Y").lower()
+            else:
+                return fake_date.strftime("%B %d, %Y")
+        
+        # ISO format ("2025-05-22")
+        if "-" in entity_text:
+            return fake_date.strftime("%Y-%m-%d")
+        
+        # Slash format ("22/05/2025")
+        if "/" in entity_text:
+            return fake_date.strftime("%d/%m/%Y")
+            
+        return fake_date.strftime("%B %d, %Y")
+
+    def _generate_synthetic_phone(self, entity_text: str) -> str:
+        digits = re.sub(r'\D', '', entity_text)
+        if entity_text.startswith("+91") or entity_text.startswith("+"):
+            return f"+91 {random.randint(6, 9)}{random.randint(100000000, 999999999)}"
+        elif "-" in entity_text:
+            return f"0{random.randint(10, 99)}-{random.randint(10000000, 99999999)}"
+        else:
+            return f"{random.randint(6, 9)}{random.randint(100000000, 999999999)}"
+
     def get_replacement(self, entity_text: str, entity_type: str) -> str:
         key = entity_text.strip().lower()
         if key in self.entity_map:
             return self.entity_map[key]
 
         if entity_type == "FULL_NAME":
-            synthetic = self.fake.name().upper() if entity_text.isupper() else self.fake.name()
+            if entity_text.isupper():
+                synthetic = self.fake.name().upper()
+            elif entity_text.islower():
+                synthetic = self.fake.name().lower()
+            else:
+                synthetic = self.fake.name()
         elif entity_type == "EMAIL":
-            synthetic = f"{self.fake.first_name().lower()}.{self.fake.last_name().lower()}@example.com"
+            email_val = f"{self.fake.first_name()}.{self.fake.last_name()}@example.org"
+            synthetic = email_val.upper() if entity_text.isupper() else email_val.lower()
         elif entity_type == "PHONE_NUMBER":
-            synthetic = f"+91 98{random.randint(10000000, 99999999)}"
+            synthetic = self._generate_synthetic_phone(entity_text)
         elif entity_type == "COMPANY_NAME":
-            synthetic = self.fake.company().upper() if entity_text.isupper() else self.fake.company()
+            if entity_text.isupper():
+                synthetic = self.fake.company().upper()
+            elif entity_text.islower():
+                synthetic = self.fake.company().lower()
+            else:
+                synthetic = self.fake.company()
         elif entity_type == "ADDRESS":
-            synthetic = f"{random.randint(10, 99)}, {self.fake.street_name()}, {self.fake.city()} - {random.randint(100000, 999999)}, India"
+            addr_val = f"{random.randint(10, 99)}, {self.fake.street_name()}, {self.fake.city()} - {random.randint(100000, 999999)}, India"
+            synthetic = addr_val.upper() if entity_text.isupper() else (addr_val.lower() if entity_text.islower() else addr_val)
         elif entity_type == "SSN_TAX_ID":
-            synthetic = f"ABCDE{random.randint(1000, 9999)}K" if len(entity_text) == 10 else f"9{random.randint(10, 99)}-{random.randint(10, 99)}-{random.randint(1000, 9999)}"
+            if len(entity_text) == 10 and entity_text.isalnum():
+                synthetic = f"ABCDE{random.randint(1000, 9999)}K"
+            else:
+                synthetic = f"9{random.randint(10, 99)}-{random.randint(10, 99)}-{random.randint(1000, 9999)}"
         elif entity_type == "CREDIT_CARD":
             synthetic = self.fake.credit_card_number()
         elif entity_type == "DATE_OF_BIRTH":
-            synthetic = "January 15, 2001" if any(m in entity_text for m in ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]) else "2001-01-15"
+            synthetic = self._generate_synthetic_date(entity_text)
         elif entity_type == "IP_ADDRESS":
             synthetic = f"192.0.2.{random.randint(1, 254)}"
         elif entity_type == "CIN_DIN":
-            synthetic = f"DIN: {random.randint(10000000, 99999999)}" if "DIN" in entity_text.upper() else f"U{random.randint(10000, 99999)}MH2000PLC{random.randint(100000, 999999)}"
+            if "DIN" in entity_text.upper():
+                if entity_text.upper().startswith("DIN"):
+                    synthetic = f"DIN: {random.randint(10000000, 99999999)}"
+                else:
+                    synthetic = f"{random.randint(10000000, 99999999)}"
+            else:
+                synthetic = f"U{random.randint(10000, 99999)}MH2000PLC{random.randint(100000, 999999)}"
         else:
             synthetic = f"[REDACTED_{entity_type}]"
 
