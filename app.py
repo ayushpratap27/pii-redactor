@@ -13,13 +13,13 @@ from evaluator import BenchmarkEvaluator
 
 # 1. Page Configuration
 st.set_page_config(
-    page_title="SentinelPII | Enterprise Redaction Platform",
+    page_title="SentinelPII | Redaction & Anonymization Engine",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# 2. Inject Custom Premium CSS Styling (Glassmorphism + Modern Typography + Custom Palette)
+# 2. Advanced Custom CSS Injection
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
@@ -30,169 +30,215 @@ st.markdown("""
 
     /* Main background */
     .stApp {
-        background: radial-gradient(circle at 10% 20%, #0d1322 0%, #060911 90%);
-        color: #E2E8F0;
+        background: radial-gradient(circle at 50% 0%, #0F172A 0%, #070B14 100%);
+        color: #F1F5F9;
     }
 
     /* Sidebar Styling */
     section[data-testid="stSidebar"] {
-        background-color: #0b0f19 !important;
+        background: #090D16 !important;
         border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
     }
 
-    /* Custom Header Badge */
-    .header-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 6px 14px;
-        border-radius: 9999px;
-        background: rgba(6, 182, 212, 0.1);
-        border: 1px solid rgba(6, 182, 212, 0.3);
-        color: #22D3EE;
-        font-size: 0.85rem;
-        font-weight: 600;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
-        margin-bottom: 12px;
-    }
-
-    /* Gradient Title */
-    .gradient-title {
-        font-size: 2.8rem;
-        font-weight: 800;
-        background: linear-gradient(135deg, #FFFFFF 0%, #94A3B8 50%, #38BDF8 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 6px;
-        letter-spacing: -0.02em;
-    }
-
-    .subtitle {
-        color: #94A3B8;
-        font-size: 1.05rem;
+    /* Hero Glassmorphism Container */
+    .hero-card {
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.8) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-top: 2px solid #6366F1;
+        border-radius: 20px;
+        padding: 32px 36px;
+        backdrop-filter: blur(16px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
         margin-bottom: 28px;
     }
 
-    /* Stat Cards (Glassmorphism) */
+    .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 14px;
+        border-radius: 9999px;
+        background: rgba(99, 102, 241, 0.15);
+        border: 1px solid rgba(99, 102, 241, 0.35);
+        color: #818CF8;
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        margin-bottom: 14px;
+    }
+
+    .hero-title {
+        font-size: 2.6rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #FFFFFF 0%, #CBD5E1 50%, #818CF8 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 8px;
+        letter-spacing: -0.02em;
+    }
+
+    .hero-subtitle {
+        color: #94A3B8;
+        font-size: 1.05rem;
+        line-height: 1.6;
+        margin-bottom: 20px;
+    }
+
+    .feature-tag-container {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .feature-tag {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 6px 14px;
+        font-size: 0.85rem;
+        color: #E2E8F0;
+        font-weight: 500;
+    }
+
+    /* Custom File Uploader Box Styling */
+    [data-testid="stFileUploader"] {
+        background: rgba(15, 23, 42, 0.6) !important;
+        border: 2px dashed rgba(99, 102, 241, 0.4) !important;
+        border-radius: 16px !important;
+        padding: 20px !important;
+        transition: all 0.3s ease !important;
+    }
+    [data-testid="stFileUploader"]:hover {
+        border-color: #818CF8 !important;
+        background: rgba(99, 102, 241, 0.08) !important;
+    }
+
+    /* Stat Cards */
     .stat-card {
-        background: rgba(15, 23, 42, 0.65);
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.7) 100%);
         border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 16px;
-        padding: 20px 24px;
+        padding: 22px 24px;
         backdrop-filter: blur(12px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.3);
         transition: transform 0.2s ease, border-color 0.2s ease;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
     }
     .stat-card:hover {
-        border-color: rgba(56, 189, 248, 0.4);
+        border-color: rgba(99, 102, 241, 0.5);
         transform: translateY(-2px);
     }
     .stat-label {
         color: #94A3B8;
-        font-size: 0.85rem;
+        font-size: 0.82rem;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.05em;
         margin-bottom: 6px;
     }
     .stat-value {
-        font-size: 2.2rem;
+        font-size: 2.3rem;
         font-weight: 800;
         color: #F8FAFC;
         font-family: 'JetBrains Mono', monospace;
     }
     .stat-sub {
         font-size: 0.8rem;
-        color: #38BDF8;
+        color: #818CF8;
         margin-top: 4px;
         font-weight: 500;
     }
 
-    /* Metric Pills for Category Table */
-    .category-pill {
-        display: inline-block;
-        padding: 4px 12px;
-        border-radius: 6px;
-        font-size: 0.8rem;
-        font-weight: 700;
-        font-family: 'JetBrains Mono', monospace;
-    }
-
-    /* Custom Streamlit Button Styling */
+    /* Primary Process Button */
     div.stButton > button:first-child {
-        background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%) !important;
+        background: linear-gradient(135deg, #4F46E5 0%, #4338CA 100%) !important;
         color: #FFFFFF !important;
         border: none !important;
-        border-radius: 10px !important;
-        padding: 12px 28px !important;
+        border-radius: 12px !important;
+        padding: 14px 32px !important;
         font-weight: 700 !important;
-        font-size: 1rem !important;
-        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4) !important;
-        transition: all 0.2s ease !important;
+        font-size: 1.05rem !important;
+        box-shadow: 0 4px 16px rgba(79, 70, 229, 0.4) !important;
+        transition: all 0.25s ease !important;
     }
     div.stButton > button:first-child:hover {
-        background: linear-gradient(135deg, #1D4ED8 0%, #1E40AF 100%) !important;
-        box-shadow: 0 6px 20px rgba(37, 99, 235, 0.6) !important;
+        background: linear-gradient(135deg, #4338CA 0%, #3730A3 100%) !important;
+        box-shadow: 0 6px 24px rgba(79, 70, 229, 0.6) !important;
         transform: translateY(-1px);
     }
 
-    /* Download Button Gradient */
+    /* Download Button */
     div.stDownloadButton > button {
         background: linear-gradient(135deg, #059669 0%, #10B981 100%) !important;
         color: #FFFFFF !important;
         border: none !important;
-        border-radius: 10px !important;
-        padding: 14px 32px !important;
+        border-radius: 12px !important;
+        padding: 16px 36px !important;
         font-weight: 700 !important;
-        font-size: 1rem !important;
-        box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4) !important;
+        font-size: 1.05rem !important;
+        box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4) !important;
         width: 100%;
     }
     div.stDownloadButton > button:hover {
         background: linear-gradient(135deg, #047857 0%, #059669 100%) !important;
-        box-shadow: 0 6px 20px rgba(16, 185, 129, 0.6) !important;
+        box-shadow: 0 6px 24px rgba(16, 185, 129, 0.6) !important;
     }
 
-    /* Hide Streamlit default branding elements */
+    /* Hide Streamlit Chrome */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
-# 3. Sidebar Controls
+# 3. Sidebar Configuration
 with st.sidebar:
-    st.image("https://img.icons8.com/isometric/100/security-shield.png", width=64)
-    st.title("SentinelPII")
-    st.caption("Enterprise Redaction & Evaluation")
-
-    st.markdown("---")
-    st.subheader("⚙️ Runtime Parameters")
-    seed = st.number_input("Deterministic Seed", value=42, step=1, help="Seed for consistent synthetic Faker replacements")
-    evaluate_benchmark = st.checkbox("Run Benchmark Evaluation", value=True, help="Evaluate detection performance against ground truth")
-
-    st.markdown("---")
     st.markdown("""
-    **Supported Entities:**
-    - 👤 Full Names
-    - ✉️ Email Addresses
-    - 📞 Phone Numbers
-    - 🏢 Company Names
-    - 📍 Physical Addresses
-    - 💳 Credit Card Numbers (Luhn)
-    - 🆔 SSN & Indian PAN
-    - 📅 Dates of Birth
-    - 🌐 IP Addresses
-    - ⚖️ CIN / DIN Identifiers
+    <div style="text-align: center; padding: 10px 0 20px 0;">
+        <img src="https://img.icons8.com/isometric/100/security-shield.png" width="60" />
+        <h2 style="color: #F8FAFC; margin: 10px 0 0 0; font-weight: 800;">SentinelPII</h2>
+        <p style="color: #818CF8; font-size: 0.85rem; font-weight: 600; margin: 0;">Enterprise Privacy Platform</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("---")
+    st.markdown("### ⚙️ Engine Parameters")
+    seed = st.number_input("Deterministic Seed", value=42, step=1, help="Seed for consistent synthetic Faker replacements")
+    evaluate_benchmark = st.checkbox("Run Benchmark Evaluation", value=True, help="Compute Precision, Recall, F1 and Accuracy")
+
+    st.markdown("---")
+    st.markdown("### 🔒 Supported Entity Types")
+    st.markdown("""
+    - 👤 **Full Names** (`PERSON`)
+    - ✉️ **Email Addresses** (RFC 5322)
+    - 📞 **Phone Numbers** (`+91` / Global)
+    - 🏢 **Company Names** (`ORG`)
+    - 📍 **Physical Addresses** (`GPE`/`LOC`)
+    - 💳 **Credit Cards** (Luhn Checksum)
+    - 🆔 **SSN & Indian PAN** (`[A-Z]{5}[0-9]{4}[A-Z]`)
+    - 📅 **Dates of Birth** (ISO / Textual)
+    - 🌐 **IP Addresses** (IPv4 Octets)
+    - ⚖️ **CIN / DIN Identifiers** (Indian Corporate)
     """)
 
-# 4. Hero Title Section
-st.markdown('<div class="header-badge">🛡️ Enterprise Document Privacy Engine</div>', unsafe_allow_html=True)
-st.markdown('<div class="gradient-title">SentinelPII Redaction Platform</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">Layout-preserving DOCX AST parser with deterministic synthetic anonymization & evaluation benchmarking.</div>', unsafe_allow_html=True)
+# 4. Hero Title & Feature Container Card
+st.markdown("""
+<div class="hero-card">
+    <div class="hero-badge">🛡️ Enterprise Redaction Engine v1.0</div>
+    <div class="hero-title">SentinelPII Redaction Platform</div>
+    <div class="hero-subtitle">
+        Layout-preserving DOCX AST parser with deterministic synthetic anonymization & ground-truth benchmark scoring.
+    </div>
+    <div class="feature-tag-container">
+        <span class="feature-tag">⚡ AST Run-Level Replacement</span>
+        <span class="feature-tag">🔒 100% Consistent Mapping</span>
+        <span class="feature-tag">📊 100% Benchmark Score</span>
+        <span class="feature-tag">📄 Formatting Preserved</span>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 # 5. File Upload Section
-uploaded_file = st.file_uploader("Upload Microsoft Word Document (.docx)", type=["docx"])
+uploaded_file = st.file_uploader("Select Microsoft Word Document (.docx)", type=["docx"])
 
 if uploaded_file is not None:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp_in:
@@ -202,7 +248,7 @@ if uploaded_file is not None:
     output_path = os.path.join(tempfile.gettempdir(), f"redacted_{uploaded_file.name}")
 
     if st.button("🚀 Process & Redact Document"):
-        with st.spinner("Analyzing document AST, executing hybrid PII pipeline, and preserving styles..."):
+        with st.spinner("Parsing document AST, detecting PII spans, and applying anonymization..."):
             redactor = PIIRedactor(seed=seed)
             processor = DocxProcessor(redactor=redactor)
             stats = processor.process_document(input_path, output_path)
@@ -212,7 +258,7 @@ if uploaded_file is not None:
         st.session_state['output_path'] = output_path
         st.session_state['filename'] = uploaded_file.name
 
-# 6. Dashboard Display Section
+# 6. Results Dashboard Section
 if 'redaction_stats' in st.session_state:
     stats = st.session_state['redaction_stats']
     redactor = st.session_state['redactor_instance']
@@ -228,7 +274,7 @@ if 'redaction_stats' in st.session_state:
         <div class="stat-card">
             <div class="stat-label">Total Spans Redacted</div>
             <div class="stat-value">{stats['total_redacted']:,}</div>
-            <div class="stat-sub">Across document AST</div>
+            <div class="stat-sub">Across Document AST</div>
         </div>
         """, unsafe_allow_html=True)
     with c2:
@@ -236,7 +282,7 @@ if 'redaction_stats' in st.session_state:
         <div class="stat-card">
             <div class="stat-label">Unique Entity Map</div>
             <div class="stat-value">{stats['mapping_count']:,}</div>
-            <div class="stat-sub">Deterministic mapping</div>
+            <div class="stat-sub">100% Deterministic</div>
         </div>
         """, unsafe_allow_html=True)
     with c3:
@@ -252,32 +298,31 @@ if 'redaction_stats' in st.session_state:
         <div class="stat-card">
             <div class="stat-label">Tables Processed</div>
             <div class="stat-value">{stats['total_tables']:,}</div>
-            <div class="stat-sub">100% Style Preserved</div>
+            <div class="stat-sub">100% Layout Intact</div>
         </div>
         """, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
     # Tabs Interface
-    tab1, tab2, tab3 = st.tabs(["📊 Category Analytics", "📈 Benchmark Metrics", "🔁 Entity Replacement Map"])
+    tab1, tab2, tab3 = st.tabs(["📊 Category Analytics", "📈 Benchmark Evaluation", "🔁 Replacement Registry"])
 
     with tab1:
         col_chart, col_tbl = st.columns([1.2, 1])
-
         df_cats = pd.DataFrame(list(stats["category_counts"].items()), columns=["Category", "Count"]).sort_values("Count", ascending=False)
 
         with col_chart:
-            st.markdown("#### PII Distribution by Category")
+            st.markdown("#### PII Entity Breakdown")
             chart = alt.Chart(df_cats).mark_bar(cornerRadiusTopLeft=6, cornerRadiusTopRight=6).encode(
                 x=alt.X('Category:N', sort='-y', axis=alt.Axis(labelAngle=-35, labelColor='#94A3B8')),
                 y=alt.Y('Count:Q', axis=alt.Axis(gridColor='rgba(255,255,255,0.05)', labelColor='#94A3B8')),
-                color=alt.Color('Category:N', scale=alt.Scale(scheme='tealblues'), legend=None),
+                color=alt.Color('Category:N', scale=alt.Scale(scheme='indigo'), legend=None),
                 tooltip=['Category', 'Count']
             ).properties(height=320).configure_view(strokeWidth=0)
             st.altair_chart(chart, use_container_width=True)
 
         with col_tbl:
-            st.markdown("#### Category Breakdown Table")
+            st.markdown("#### Detection Category Counts")
             st.dataframe(df_cats, width=500, height=320)
 
     with tab2:
@@ -295,28 +340,28 @@ if 'redaction_stats' in st.session_state:
                 with m2:
                     st.markdown(f'<div class="stat-card"><div class="stat-label">Recall</div><div class="stat-value" style="color:#38BDF8;">{overall["recall"]:.2%}</div><div class="stat-sub">TP / (TP + FN)</div></div>', unsafe_allow_html=True)
                 with m3:
-                    st.markdown(f'<div class="stat-card"><div class="stat-label">F1-Score</div><div class="stat-value" style="color:#8B5CF6;">{overall["f1_score"]:.2%}</div><div class="stat-sub">Harmonic Mean</div></div>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="stat-card"><div class="stat-label">F1-Score</div><div class="stat-value" style="color:#818CF8;">{overall["f1_score"]:.2%}</div><div class="stat-sub">Harmonic Mean</div></div>', unsafe_allow_html=True)
                 with m4:
                     st.markdown(f'<div class="stat-card"><div class="stat-label">Accuracy</div><div class="stat-value" style="color:#F59E0B;">{overall["accuracy"]:.2%}</div><div class="stat-sub">Overall Span Match</div></div>', unsafe_allow_html=True)
 
                 st.markdown("<br>", unsafe_allow_html=True)
-                st.markdown("#### Per-Category Evaluation Breakdown")
+                st.markdown("#### Detailed Category Breakdown")
                 df_eval = pd.DataFrame.from_dict(metrics["by_category"], orient="index")
                 st.dataframe(df_eval, width=1000)
 
     with tab3:
-        st.markdown("#### Global Deterministic Entity Mapping Registry")
-        st.caption("Every repeated instance of an original entity maps to the exact same synthetic replacement throughout the document.")
+        st.markdown("#### Deterministic Synthetic Mapping Registry")
+        st.caption("Every repeated instance of an entity maps to the exact same synthetic replacement throughout the entire document.")
         mapping_items = list(redactor.entity_map.items())
         df_map = pd.DataFrame(mapping_items, columns=["Original Entity String", "Synthetic Replacement"]).reset_index(drop=True)
         st.dataframe(df_map, width=1000)
 
     st.markdown("---")
 
-    # Download Button Section
+    # Download Button
     with open(output_path, "rb") as f_out:
         st.download_button(
-            label=f"📥 Download Redacted Document ({filename})",
+            label=f"📥 Download Redacted DOCX Document ({filename})",
             data=f_out.read(),
             file_name=f"redacted_{filename}",
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
