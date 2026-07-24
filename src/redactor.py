@@ -27,7 +27,12 @@ class PIIRedactor:
         try:
             self.nlp = spacy.load("en_core_web_sm")
         except Exception:
-            self.nlp = spacy.blank("en")
+            try:
+                import spacy.cli
+                spacy.cli.download("en_core_web_sm")
+                self.nlp = spacy.load("en_core_web_sm")
+            except Exception:
+                self.nlp = spacy.blank("en")
 
         # Compile regexes
         self.email_re = re.compile(r'\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b', re.I)

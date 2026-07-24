@@ -3,5 +3,6 @@ faker>=37.0.0
 phonenumbers>=9.0.0
 python-stdnum>=2.2
 spacy>=3.8.0
+https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
 streamlit>=1.50.0
 pytest>=8.0.0

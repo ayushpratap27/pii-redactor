@@ -1,6 +1,6 @@
-# Enterprise PII Redaction & Evaluation Tool
+# PII Redaction Tool
 
-An enterprise-grade Python application designed to detect, anonymize with consistent synthetic replacements, and evaluate Personally Identifiable Information (PII) inside Microsoft Word (`.docx`) documents while preserving 100% of document styling, table structures, and formatting layout.
+A high-precision Python application designed to detect Personally Identifiable Information (PII), anonymize text with consistent synthetic replacements, and evaluate detection performance inside Microsoft Word (`.docx`) documents while preserving 100% of document styling, table structures, and formatting layout.
 
 ---
 
@@ -10,12 +10,12 @@ This solution combines a **Hybrid Extraction Pipeline**, **Deterministic Consist
 
 1. **Hybrid Detection Engine**:
    - **Regex & Pattern Extractors**: RFC 5322 Email regex, Google `phonenumbers` + Indian number formats (`+91`), US SSN (`XXX-XX-XXXX`), Indian PAN (`ABCDE1234F`), Credit Cards (with mandatory Luhn algorithm verification via `python-stdnum`), IPv4 addresses, Dates of Birth, and Corporate Identity Numbers (CIN/DIN).
-   - **NER Model & Heuristics**: `spaCy` (`en_core_web_sm`) for `PERSON` (Full Names), `ORG` (Company Names), and `GPE`/`LOC`/`FAC` (Physical Addresses), augmented with custom RHP document context heuristics (Promoter lists, Secretary/Officer titles).
+   - **NER Model & Heuristics**: `spaCy` (`en_core_web_sm`) for `PERSON` (Full Names), `ORG` (Company Names), and `GPE`/`LOC`/`FAC` (Physical Addresses), augmented with custom document context heuristics (Promoter lists, Officer titles).
    - **Disambiguation & Overlap Resolution**: Overlapping entity spans are resolved by prioritizing confidence scores, span lengths, and deterministic patterns over generic NER models.
 
 2. **Deterministic Synthetic Anonymization**:
-   - Uses `Faker` to generate realistic synthetic replacement values (e.g. `John Doe` -> `Michael Anderson`, `john.doe@gmail.com` -> `michael.anderson@example.com`, `+91 9876543210` -> `+91 9812345678`).
-   - Maintains a global `DeterministicEntityMapper` lookup map to ensure that **every repeated instance of the exact same entity receives the exact same replacement** throughout body paragraphs, tables, headers, and footers.
+   - Uses `Faker` to generate realistic, format-preserving synthetic replacement values (e.g. `John Doe` -> `Michael Anderson`, `john.doe@gmail.com` -> `michael.anderson@example.org`, `+91 9876543210` -> `+91 9812345678`, `March 20, 2025` -> `October 11, 1991`).
+   - Maintains a global lookup map to ensure that **every repeated instance of the exact same entity receives the exact same synthetic replacement** throughout body paragraphs, tables, headers, and footers.
 
 3. **Format & Layout Preservation**:
    - Modifies Microsoft Word (`.docx`) DOM at the `Run` object level right-to-left based on character-span offsets.
@@ -23,49 +23,20 @@ This solution combines a **Hybrid Extraction Pipeline**, **Deterministic Consist
 
 ---
 
-## 🎯 Supported PII Categories (Minimum 9 + Extensions)
+## 🎯 Supported PII Categories
 
 | PII Category | Detection Method | Validation / Heuristic |
 |---|---|---|
-| **Full Names** | `spaCy` NER (`PERSON`) + RHP Promoter rules | Title context & uppercase promoter pattern matching |
+| **Full Names** | `spaCy` NER (`PERSON`) + Context Rules | Title context & case-matched synthetic replacements |
 | **Email Addresses** | RFC 5322 Regex | Pattern matching |
-| **Phone Numbers** | `phonenumbers` + Indian (+91) Regex | Country code & digit count verification |
+| **Phone Numbers** | `phonenumbers` + Indian (+91) Regex | Country code, STD code & digit count verification |
 | **Company Names** | `spaCy` NER (`ORG`) + Regex | Corporate suffix filter |
 | **Physical Addresses** | `spaCy` NER (`GPE`, `LOC`, `FAC`) + Regex | Address keyword heuristics |
 | **SSN / Tax IDs** | Regex + Format Rules | US SSN area code checks & Indian PAN pattern |
 | **Credit Card Numbers** | Regex + Luhn Algorithm | Mandatory Luhn checksum validation |
-| **Dates of Birth** | Regex (ISO, US, Textual) | Month name and numeric date rules |
+| **Dates of Birth** | Regex (ISO, US, Textual) | Format-preserving synthetic date generator |
 | **IP Addresses** | IPv4 Regex | Octet numeric boundary checks (`0-255`) |
-| **CIN / DIN (Extension)** | Indian Regulatory Regex | 21-digit CIN & 8-digit DIN extraction |
-
----
-
-## ⚖️ Tradeoffs, False Positives & False Negatives
-
-- **False Positives**:
-  - Generic NER models (`en_core_web_sm`) can occasionally flag uppercase legal terms or general organizational names (e.g. "Companies Act", "Table of Contents") as Organizations or Locations.
-  - *Mitigation*: Implemented confidence score thresholding (>= 0.60) and strict entity type filtering.
-- **False Negatives**:
-  - Unconventional or severely split names across multiple lines/hyphens without title indicators can occasionally be missed by standard NER models.
-  - *Mitigation*: Combined NER with pattern heuristics for corporate promoter lists and officer signatures.
-- **Performance Tradeoff**:
-  - Parsing every single `Run` object inside large DOCX files guarantees 100% style preservation, but incurs a slight parsing overhead compared to plain text stripping.
-
----
-
-## 📊 Evaluation Approach & Summary Results
-
-Benchmark evaluation is executed at the exact character-span and paragraph level against annotated ground-truth datasets (`data/annotations.json`):
-
-$$\text{Precision} = \frac{TP}{TP + FP}, \quad \text{Recall} = \frac{TP}{TP + FN}, \quad \text{Accuracy} = \frac{TP}{TP + FP + FN}$$
-
-### Benchmark Evaluation Summary:
-- **Overall Precision**: **91.30%**
-- **Overall Recall**: **95.45%**
-- **Overall F1-Score**: **93.33%**
-- **Overall Accuracy**: **87.50%**
-
-*(See [`docs/EVALUATION.md`](file:///Users/ayushpratap/Documents/GitHub/pii-redactor/docs/EVALUATION.md) for the full category breakdown table and mathematical formulas).*
+| **CIN / DIN** | Regulatory Regex | 21-digit CIN & 8-digit DIN extraction |
 
 ---
 
@@ -75,17 +46,17 @@ $$\text{Precision} = \frac{TP}{TP + FP}, \quad \text{Recall} = \frac{TP}{TP + FN
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e .
+pip install -r requirements.txt
 python -m spacy download en_core_web_sm
 ```
 
 ### 2. Command Line Interface (CLI)
 ```bash
 # Redact document
-pii-redact "Red Herring Prospectus.docx" "Red Herring Prospectus_redacted.docx"
+python main.py "sample_document.docx" "redacted_document.docx"
 
 # Redact and run benchmark evaluation against ground truth annotations
-pii-redact "Red Herring Prospectus.docx" "Red Herring Prospectus_redacted.docx" --annotation data/annotations.json --evaluate
+python main.py "sample_document.docx" "redacted_document.docx" --annotation data/annotations.json --evaluate
 ```
 
 ### 3. Interactive Web Application
@@ -93,7 +64,8 @@ pii-redact "Red Herring Prospectus.docx" "Red Herring Prospectus_redacted.docx" 
 streamlit run app.py
 ```
 
-### 4. Running Unit Tests
-```bash
-pytest tests/
-```
+---
+
+## 📊 Evaluation Report
+
+For complete precision, recall, F1-score, and category-level evaluation details, see [`evaluation_report.md`](evaluation_report.md).
