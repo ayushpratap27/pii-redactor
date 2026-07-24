@@ -1,0 +1,57 @@
+[
+  {
+    "id": 1,
+    "text": "Contact Person: Sarthak Malvadkar, Company Secretary and Compliance Officer; Telephone: +91 20 45053237 Email: cs.connect@kshinternational.com",
+    "annotations": [
+      {"start": 16, "end": 33, "text": "Sarthak Malvadkar", "entity_type": "FULL_NAME"},
+      {"start": 88, "end": 103, "text": "+91 20 45053237", "entity_type": "PHONE_NUMBER"},
+      {"start": 111, "end": 142, "text": "cs.connect@kshinternational.com", "entity_type": "EMAIL"}
+    ]
+  },
+  {
+    "id": 2,
+    "text": "OUR PROMOTERS: KUSHAL SUBBAYYA HEGDE, PUSHPA KUSHAL HEGDE, RAJESH KUSHAL HEGDE, ROHIT KUSHAL HEGDE, AND RAKHI GIRIJA SHETTY",
+    "annotations": [
+      {"start": 15, "end": 36, "text": "KUSHAL SUBBAYYA HEGDE", "entity_type": "FULL_NAME"},
+      {"start": 38, "end": 57, "text": "PUSHPA KUSHAL HEGDE", "entity_type": "FULL_NAME"},
+      {"start": 59, "end": 78, "text": "RAJESH KUSHAL HEGDE", "entity_type": "FULL_NAME"},
+      {"start": 80, "end": 98, "text": "ROHIT KUSHAL HEGDE", "entity_type": "FULL_NAME"},
+      {"start": 104, "end": 123, "text": "RAKHI GIRIJA SHETTY", "entity_type": "FULL_NAME"}
+    ]
+  },
+  {
+    "id": 3,
+    "text": "REGISTERED OFFICE: 11/3, 11/4 and 11/5 Village Birdewadi Chakan Taluka - Khed Pune – 410 501 Maharashtra, India",
+    "annotations": [
+      {"start": 19, "end": 111, "text": "11/3, 11/4 and 11/5 Village Birdewadi Chakan Taluka - Khed Pune – 410 501 Maharashtra, India", "entity_type": "ADDRESS"}
+    ]
+  },
+  {
+    "id": 4,
+    "text": "Email: siddharth.jadhav@hdfcbank.com, sachin.gawade@hdfcbank.com, and sheetal.parab@nuvama.com",
+    "annotations": [
+      {"start": 7, "end": 36, "text": "siddharth.jadhav@hdfcbank.com", "entity_type": "EMAIL"},
+      {"start": 38, "end": 64, "text": "sachin.gawade@hdfcbank.com", "entity_type": "EMAIL"},
+      {"start": 70, "end": 94, "text": "sheetal.parab@nuvama.com", "entity_type": "EMAIL"}
+    ]
+  },
+  {
+    "id": 5,
+    "text": "KSH INTERNATIONAL LIMITED CORPORATE IDENTITY NUMBER: U28129PN1979PLC141032",
+    "annotations": [
+      {"start": 0, "end": 25, "text": "KSH INTERNATIONAL LIMITED", "entity_type": "COMPANY_NAME"},
+      {"start": 53, "end": 74, "text": "U28129PN1979PLC141032", "entity_type": "CIN_DIN"}
+    ]
+  },
+  {
+    "id": 6,
+    "text": "Officer Tax ID: ABCDE1234F SSN: 219-09-9812 DOB: December 10, 2025 IP: 192.168.1.50 Credit Card: 4532 0151 1283 0366",
+    "annotations": [
+      {"start": 16, "end": 26, "text": "ABCDE1234F", "entity_type": "SSN_TAX_ID"},
+      {"start": 32, "end": 43, "text": "219-09-9812", "entity_type": "SSN_TAX_ID"},
+      {"start": 49, "end": 66, "text": "December 10, 2025", "entity_type": "DATE_OF_BIRTH"},
+      {"start": 71, "end": 83, "text": "192.168.1.50", "entity_type": "IP_ADDRESS"},
+      {"start": 97, "end": 116, "text": "4532 0151 1283 0366", "entity_type": "CREDIT_CARD"}
+    ]
+  }
+]
