@@ -30,7 +30,8 @@ class PIIRedactor:
         "CHIEF FINANCIAL OFFICER", "CFO", "CEO", "NOTICE", "STATEMENT", "SECTION",
         "THE COMPANY", "A COMPANY", "PUBLIC COMPANY", "PRIVATE COMPANY",
         "COMPANY INCORPORATION", "COMPANY LIMITED BY SHARES", "LISTED COMPANY",
-        "UNLISTED COMPANY", "COMPANY LIMITED", "HOLDING COMPANY", "SUBSIDIARY COMPANY"
+        "UNLISTED COMPANY", "COMPANY LIMITED", "HOLDING COMPANY", "SUBSIDIARY COMPANY",
+        "SCRR", "SCRA", "FEMA", "ICDR", "LODR", "IFSC", "IGST", "CGST", "SGST", "GSTIN", "TAN"
     }
 
     REGULATORY_DOMAINS = {
@@ -64,7 +65,7 @@ class PIIRedactor:
 
         stext_upper = stext.upper()
         # Reject candidate FULL_NAME or COMPANY_NAME spans containing non-PII prospectus terms
-        for non_pii_kw in ["OFFER", "ISSUE", "BID", "COMPANY", "GENERAL INFORMATION", "PROSPECTUS", "STATEMENT", "SECTION", "RISK", "SHAREHOLDER"]:
+        for non_pii_kw in ["OFFER", "ISSUE", "BID", "COMPANY", "GENERAL INFORMATION", "PROSPECTUS", "STATEMENT", "SECTION", "RISK", "SHAREHOLDER", "SCRR", "SCRA", "FEMA"]:
             if non_pii_kw in stext_upper and stype in ("FULL_NAME", "COMPANY_NAME"):
                 return False
 
@@ -80,7 +81,7 @@ class PIIRedactor:
 
         elif stype == "COMPANY_NAME":
             stext_upper = stext.strip().upper()
-            if any(generic in stext_upper for generic in ["OUR COMPANY", "THE COMPANY", "PUBLIC COMPANY", "PRIVATE COMPANY", "LIMITED BY SHARES", "HOLDING COMPANY"]):
+            if any(generic in stext_upper for generic in ["OUR COMPANY", "THE COMPANY", "PUBLIC COMPANY", "PRIVATE COMPANY", "LIMITED BY SHARES", "HOLDING COMPANY", "SCRR", "SCRA", "FEMA", "ICDR", "LODR"]):
                 return False
             return bool(self.company_suffix_re.search(stext))
 
