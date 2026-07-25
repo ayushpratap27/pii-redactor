@@ -62,7 +62,15 @@ class PIIRedactor:
         if not stext or self.is_non_pii(stext):
             return False
 
+        stext_upper = stext.upper()
+        # Reject candidate FULL_NAME or COMPANY_NAME spans containing non-PII prospectus terms
+        for non_pii_kw in ["OFFER", "ISSUE", "BID", "COMPANY", "GENERAL INFORMATION", "PROSPECTUS", "STATEMENT", "SECTION", "RISK", "SHAREHOLDER"]:
+            if non_pii_kw in stext_upper and stype in ("FULL_NAME", "COMPANY_NAME"):
+                return False
+
         if stype == "FULL_NAME":
+            if any(term in f" {stext} " for term in [" the ", " of ", " and ", " in ", " for ", " to ", " with ", " on ", " by "]):
+                return False
             if len(stext.split()) < 2:
                 offset = span.get("start", 0)
                 preceding = text[max(0, offset - 12):offset].strip()
