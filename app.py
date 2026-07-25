@@ -3,6 +3,7 @@ import tempfile
 import os
 import sys
 import json
+import uuid
 import pandas as pd
 import docx
 import altair as alt
@@ -11,8 +12,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 
 from redactor import PIIRedactor
 from docx_processor import DocxProcessor
-
-CACHE_FILE = os.path.join(tempfile.gettempdir(), "pii_last_session_cache.json")
 
 # 1. Page Configuration (Light Mode, No Sidebar)
 st.set_page_config(
@@ -235,10 +234,32 @@ st.markdown("""
 # Default Runtime Variables
 seed = 42
 
-# Restore session state from persistent disk cache if available
-if 'redaction_stats' not in st.session_state and os.path.exists(CACHE_FILE):
+# 3. Browser-Scoped Device Identification
+device_id = None
+try:
+    cookies = getattr(st.context, 'cookies', {})
+    device_id = cookies.get("pii_device_id")
+except Exception:
+    device_id = None
+
+if not device_id:
+    device_id = st.query_params.get("session_id")
+
+if not device_id:
+    device_id = str(uuid.uuid4())[:12]
+    st.query_params["session_id"] = device_id
+    st.markdown(f"""
+    <script>
+        document.cookie = "pii_device_id={device_id}; path=/; max-age=86400; SameSite=Lax";
+    </script>
+    """, unsafe_allow_html=True)
+
+DEVICE_CACHE_FILE = os.path.join(tempfile.gettempdir(), f"pii_session_{device_id}.json")
+
+# Restore session state from browser-scoped cache if available
+if 'redaction_stats' not in st.session_state and os.path.exists(DEVICE_CACHE_FILE):
     try:
-        with open(CACHE_FILE, "r") as f_cache:
+        with open(DEVICE_CACHE_FILE, "r") as f_cache:
             cache_data = json.load(f_cache)
             if os.path.exists(cache_data.get('output_path', '')):
                 st.session_state['redaction_stats'] = cache_data['redaction_stats']
@@ -253,11 +274,11 @@ if 'redaction_stats' not in st.session_state and os.path.exists(CACHE_FILE):
     except Exception:
         pass
 
-# 3. Header Title & Subtitle
+# 4. Header Title & Subtitle
 st.markdown('<div class="main-title">PII Redaction Tool</div>', unsafe_allow_html=True)
 st.markdown('<div class="main-subtitle">Layout-preserving DOCX AST parser with deterministic synthetic anonymization.</div>', unsafe_allow_html=True)
 
-# 4. 5-Step Workflow Bar Component
+# 5. 5-Step Workflow Bar Component
 st.markdown("""
 <div class="workflow-container">
     <div class="workflow-title">Redaction Workflow Pipeline</div>
@@ -301,12 +322,26 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# 5. Clean File Upload Section
+# 6. Clean File Upload Section & State Lifecycle Management
 uploaded_file = st.file_uploader("Select Microsoft Word Document (.docx) to Redact", type=["docx"])
 
-if uploaded_file is not None:
+if uploaded_file is None:
+    # Clear current state and device cache if uploader is cleared
+    if os.path.exists(DEVICE_CACHE_FILE):
+        try:
+            os.remove(DEVICE_CACHE_FILE)
+        except Exception:
+            pass
+    for k in ['redaction_stats', 'output_path', 'filename', 'input_path', 'redactor_instance']:
+        st.session_state.pop(k, None)
+else:
+    # Check if a new file is uploaded (different from cached filename)
+    if st.session_state.get('filename') and st.session_state.get('filename') != uploaded_file.name:
+        for k in ['redaction_stats', 'output_path', 'filename', 'input_path', 'redactor_instance']:
+            st.session_state.pop(k, None)
+
     # Save input file to persistent location
-    persistent_in_dir = os.path.join(tempfile.gettempdir(), "pii_uploads")
+    persistent_in_dir = os.path.join(tempfile.gettempdir(), f"pii_uploads_{device_id}")
     os.makedirs(persistent_in_dir, exist_ok=True)
     input_path = os.path.join(persistent_in_dir, uploaded_file.name)
     with open(input_path, "wb") as f_in:
@@ -329,7 +364,7 @@ if uploaded_file is not None:
             st.session_state['filename'] = uploaded_file.name
             st.session_state['input_path'] = input_path
 
-            # Save to persistent disk cache for browser refresh survival
+            # Save to browser-scoped disk cache for same-browser tab synchronization
             try:
                 cache_data = {
                     'redaction_stats': stats,
@@ -339,12 +374,12 @@ if uploaded_file is not None:
                     'seed': seed,
                     'entity_map': redactor.entity_map
                 }
-                with open(CACHE_FILE, "w") as f_cache:
+                with open(DEVICE_CACHE_FILE, "w") as f_cache:
                     json.dump(cache_data, f_cache)
             except Exception:
                 pass
 
-# 6. Streamlined Results Dashboard
+# 7. Streamlined Results Dashboard (Only shown if file processed)
 if 'redaction_stats' in st.session_state:
     stats = st.session_state['redaction_stats']
     redactor = st.session_state['redactor_instance']
@@ -435,7 +470,7 @@ if 'redaction_stats' in st.session_state:
                 use_container_width=True
             )
 
-# 7. Footer Component
+# 8. Footer Component
 st.markdown("<br><br>", unsafe_allow_html=True)
 st.markdown("""
 <div style="text-align: center; color: #64748B; font-size: 0.8rem; border-top: 1px solid #E2E8F0; padding-top: 20px;">
