@@ -7,3 +7,4 @@ temp_*
 *.docx
 redacted_*
 pii_last_session_cache.json
+tests/
