@@ -352,10 +352,26 @@ else:
     c_left, c_btn, c_right = st.columns([1, 1.5, 1])
     with c_btn:
         if st.button("🚀 Process & Redact Document", use_container_width=True):
-            with st.spinner("Parsing document AST, detecting PII spans, and applying anonymization..."):
-                redactor = PIIRedactor(seed=seed)
-                processor = DocxProcessor(redactor=redactor)
-                stats = processor.process_document(input_path, output_path)
+            progress_bar = st.progress(0)
+            status_box = st.empty()
+
+            def st_progress_callback(step: int, total: int, phase: str):
+                pct = int((step / total) * 100) if total > 0 else 100
+                progress_bar.progress(min(pct, 100))
+                frames = ['◐', '◓', '◑', '◒']
+                frame = frames[step % len(frames)]
+                status_box.markdown(f"""
+                <div style="background:#EEF2FF; border:1px solid #C7D2FE; border-radius:10px; padding:12px 18px; text-align:center; color:#4F46E5; font-weight:700; font-family:'JetBrains Mono', monospace; font-size:0.92rem; margin-top:10px;">
+                    {frame} Redacting Document Process: Step {step}/{total} ({pct}%) &bull; {phase}
+                </div>
+                """, unsafe_allow_html=True)
+
+            redactor = PIIRedactor(seed=seed)
+            processor = DocxProcessor(redactor=redactor, verbose=False)
+            stats = processor.process_document(input_path, output_path, progress_callback=st_progress_callback)
+
+            status_box.empty()
+            progress_bar.empty()
 
             new_token = str(uuid.uuid4())[:12]
             st.session_state['redaction_stats'] = stats

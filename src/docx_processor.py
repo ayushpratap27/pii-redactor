@@ -1,57 +1,107 @@
 import docx
-from typing import Dict, Tuple, List
+import sys
+from typing import Dict, Tuple, List, Callable, Optional
 from redactor import PIIRedactor
 
 class DocxProcessor:
     """Parses and redacts DOCX documents preserving inline formatting and table layouts."""
 
-    def __init__(self, redactor: PIIRedactor):
-        self.redactor = redactor
+    SPINNER_FRAMES = ['◐', '◓', '◑', '◒']
 
-    def process_document(self, input_path: str, output_path: str) -> Dict:
+    def __init__(self, redactor: PIIRedactor, verbose: bool = True):
+        self.redactor = redactor
+        self.verbose = verbose
+
+    def process_document(self, input_path: str, output_path: str, progress_callback: Optional[Callable[[int, int, str], None]] = None) -> Dict:
         doc = docx.Document(input_path)
+
+        # Pre-calculate total work units for accurate process percentage
+        total_body_paragraphs = len(doc.paragraphs)
+        total_tables = len(doc.tables)
+        total_table_paragraphs = sum(
+            len(cell.paragraphs)
+            for table in doc.tables
+            for row in table.rows
+            for cell in row.cells
+        )
+        total_section_paragraphs = 0
+        for section in doc.sections:
+            for container in [section.header, section.first_page_header, section.even_page_header,
+                              section.footer, section.first_page_footer, section.even_page_footer]:
+                if container and not container.is_linked_to_previous:
+                    total_section_paragraphs += len(container.paragraphs)
+
+        total_steps = total_body_paragraphs + total_table_paragraphs + total_section_paragraphs
+        if total_steps == 0:
+            total_steps = 1
+
+        current_step = 0
         total_paragraphs = 0
-        total_tables = 0
+        processed_tables = 0
         total_redacted = 0
         category_counts: Dict[str, int] = {}
+
+        def default_terminal_callback(step: int, total: int, phase: str):
+            if not self.verbose:
+                return
+            pct = (step / total) * 100
+            frame = self.SPINNER_FRAMES[step % len(self.SPINNER_FRAMES)]
+            sys.stdout.write(f"\r[{frame}] Redacting Document Process: Step {step}/{total} ({pct:.1f}%) | {phase}   ")
+            sys.stdout.flush()
+            if step >= total:
+                sys.stdout.write("\n")
+                sys.stdout.flush()
+
+        callback = progress_callback or default_terminal_callback
+        callback(0, total_steps, "Initializing Document AST...")
 
         # 1. Process Body Paragraphs
         for paragraph in doc.paragraphs:
             total_paragraphs += 1
+            current_step += 1
             count, cats = self._redact_paragraph(paragraph)
             total_redacted += count
             for c, k in cats.items():
                 category_counts[c] = category_counts.get(c, 0) + k
+            callback(current_step, total_steps, f"Paragraph {total_paragraphs}/{total_body_paragraphs}")
 
         # 2. Process Tables
         for table in doc.tables:
-            total_tables += 1
+            processed_tables += 1
             for row in table.rows:
                 for cell in row.cells:
                     for paragraph in cell.paragraphs:
+                        current_step += 1
                         count, cats = self._redact_paragraph(paragraph)
                         total_redacted += count
                         for c, k in cats.items():
                             category_counts[c] = category_counts.get(c, 0) + k
+                        callback(current_step, total_steps, f"Table {processed_tables}/{total_tables}")
 
         # 3. Process Headers and Footers
         for section in doc.sections:
             for header in [section.header, section.first_page_header, section.even_page_header]:
                 if header and not header.is_linked_to_previous:
                     for paragraph in header.paragraphs:
+                        current_step += 1
                         count, cats = self._redact_paragraph(paragraph)
                         total_redacted += count
                         for c, k in cats.items():
                             category_counts[c] = category_counts.get(c, 0) + k
+                        callback(current_step, total_steps, "Headers")
             for footer in [section.footer, section.first_page_footer, section.even_page_footer]:
                 if footer and not footer.is_linked_to_previous:
                     for paragraph in footer.paragraphs:
+                        current_step += 1
                         count, cats = self._redact_paragraph(paragraph)
                         total_redacted += count
                         for c, k in cats.items():
                             category_counts[c] = category_counts.get(c, 0) + k
+                        callback(current_step, total_steps, "Footers")
 
+        callback(total_steps, total_steps, "Complete")
         doc.save(output_path)
+
         return {
             "total_paragraphs": total_paragraphs,
             "total_tables": total_tables,
