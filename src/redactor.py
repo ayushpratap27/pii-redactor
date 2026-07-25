@@ -127,7 +127,7 @@ class PIIRedactor:
         return True
 
     def __init__(self, seed: int = 42):
-        self.fake = Faker("en_US")
+        self.fake = Faker(["en_IN", "en_US"])
         Faker.seed(seed)
         random.seed(seed)
         self.entity_map: Dict[str, str] = {}
@@ -165,7 +165,7 @@ class PIIRedactor:
             r'\b(?:(?:Flat|Plot|Floor|Door|Survey|Gat|House|Bldg|Building|Suite|Sector|Road|Street|Nagar|Industrial Area|MIDC|Taluka|District|P\.?O\.?|F\.?No\.?|No\.?)\s+[\w\d\s.,/-]+,?\s+)*(?:\d{1,4}[,\s]+)?[\w\s.,-]{5,120}[,\s]+(?:\d{6}|\d{3}\s*\d{3}|[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s*-\s*(?:\d{6}|\d{3}\s*\d{3}))(?:[,\s]+(?:Maharashtra|Gujarat|Karnataka|Tamil Nadu|Delhi|Haryana|Uttar Pradesh|West Bengal|Telangana|Andhra Pradesh|Rajasthan|Madhya Pradesh|Punjab|Kerala|Bihar|India))\b',
             re.I
         )
-        self.company_suffix_re = re.compile(r'\b(?:PVT\.?|PRIVATE|LIMITED|LTD\.?|INC\.?|CORP\.?|CORPORATION|LLP|PLC)\b', re.I)
+        self.company_suffix_re = re.compile(r'\b(?:PVT\.?\s*LTD\.?|PRIVATE\s+LIMITED|LIMITED|LTD\.?|INC\.?|CORP\.?|CORPORATION|LLP|PLC)\b', re.I)
         self.honorific_name_re = re.compile(r'\b(?:Mr\.|Ms\.|Mrs\.|Dr\.|Prof\.|Shri|Smt\.|Sri)\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*)\b')
         self.all_caps_name_re = re.compile(r'\b[A-Z]{2,}(?:\s+[A-Z]{2,}){1,3}\b')
         self.account_re = re.compile(r'\b(?:Account No\.|A/c No\.|Account Number|Bank Account No\.|A/C):\s*(\d{9,18})\b', re.I)
@@ -455,7 +455,12 @@ class PIIRedactor:
             return f"{random.randint(6, 9)}{random.randint(100000000, 999999999)}"
 
     def get_replacement(self, entity_text: str, entity_type: str, use_synthetic: bool = False) -> str:
-        key = entity_text.strip().lower()
+        clean_text = entity_text.strip()
+        key = clean_text.lower()
+        key_norm = re.sub(r'\s+', ' ', key)
+
+        if key_norm in self.entity_map:
+            return self.entity_map[key_norm]
         if key in self.entity_map:
             return self.entity_map[key]
 
@@ -482,21 +487,61 @@ class PIIRedactor:
             replacement = labels.get(entity_type, f"[REDACTED {entity_type}]")
         else:
             if entity_type == "FULL_NAME":
-                replacement = self.fake.name().upper() if entity_text.isupper() else (self.fake.name().lower() if entity_text.islower() else self.fake.name())
+                raw_name = self.fake.name()
+                replacement = raw_name.upper() if entity_text.isupper() else (raw_name.lower() if entity_text.islower() else raw_name)
             elif entity_type == "EMAIL":
-                email_val = f"{self.fake.first_name()}.{self.fake.last_name()}@example.org"
+                email_val = f"{self.fake.first_name().lower()}.{self.fake.last_name().lower()}@example.org"
                 replacement = email_val.upper() if entity_text.isupper() else email_val.lower()
             elif entity_type == "PHONE_NUMBER":
                 replacement = self._generate_synthetic_phone(entity_text)
             elif entity_type == "COMPANY_NAME":
-                replacement = self.fake.company().upper() if entity_text.isupper() else (self.fake.company().lower() if entity_text.islower() else self.fake.company())
+                comp_base = self.fake.company()
+                suffix_match = self.company_suffix_re.search(entity_text)
+                if suffix_match:
+                    suf = suffix_match.group(0)
+                    base_clean = re.sub(self.company_suffix_re, '', comp_base).strip()
+                    comp_name = f"{base_clean} {suf}"
+                else:
+                    comp_name = comp_base
+                replacement = comp_name.upper() if entity_text.isupper() else (comp_name.lower() if entity_text.islower() else comp_name)
             elif entity_type == "ADDRESS":
                 addr_val = f"Plot No. {random.randint(10, 99)}, {self.fake.street_name()}, MIDC Industrial Area, {self.fake.city()} - {random.randint(100000, 999999)}, Maharashtra, India"
                 replacement = addr_val.upper() if entity_text.isupper() else (addr_val.lower() if entity_text.islower() else addr_val)
             elif entity_type == "DATE_OF_BIRTH":
                 replacement = self._generate_synthetic_date(entity_text)
+            elif entity_type == "SSN_TAX_ID":
+                clean_txt = entity_text.replace('-', '').strip()
+                if len(clean_txt) == 10:
+                    replacement = f"ABCDE{random.randint(1000, 9999)}K"
+                else:
+                    replacement = f"9{random.randint(10, 99)}-{random.randint(10, 99)}-{random.randint(1000, 9999)}"
+            elif entity_type == "CREDIT_CARD":
+                replacement = self.fake.credit_card_number()
+            elif entity_type == "IP_ADDRESS":
+                replacement = f"192.0.2.{random.randint(1, 254)}"
+            elif entity_type == "CIN_DIN":
+                if "DIN" in entity_text.upper():
+                    replacement = f"DIN: {random.randint(10000000, 99999999)}" if entity_text.upper().startswith("DIN") else f"{random.randint(10000000, 99999999)}"
+                else:
+                    replacement = f"U{random.randint(10000, 99999)}MH2005PLC{random.randint(100000, 999999)}"
+            elif entity_type == "WEBSITE_URL":
+                url_val = "www.anonymized-domain.com"
+                replacement = url_val.upper() if entity_text.isupper() else url_val.lower()
+            elif entity_type == "BANK_ACCOUNT":
+                replacement = f"{random.randint(1000000000, 9999999999)}"
+            elif entity_type == "IFSC_CODE":
+                replacement = f"SBIN00{random.randint(1000, 9999)}"
+            elif entity_type == "AADHAAR_NUMBER":
+                replacement = f"{random.randint(1000, 9999)}-{random.randint(1000, 9999)}-{random.randint(1000, 9999)}"
+            elif entity_type == "AGE":
+                replacement = f"Aged {random.randint(30, 65)} years"
+            elif entity_type == "PROFESSIONAL_MEMBERSHIP":
+                replacement = f"FCS No. {random.randint(10000, 99999)}"
+            elif entity_type == "DESIGNATION":
+                replacement = "Managing Director" if entity_text.isupper() else "Managing Director"
             else:
                 replacement = f"[REDACTED_{entity_type}]"
 
         self.entity_map[key] = replacement
+        self.entity_map[key_norm] = replacement
         return replacement
