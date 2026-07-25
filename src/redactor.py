@@ -68,6 +68,18 @@ class PIIRedactor:
             return False
 
         stext_upper = stext.upper()
+        offset = span.get("start", 0)
+        end_offset = span.get("end", len(text))
+        
+        preceding = text[max(0, offset - 30):offset].strip()
+        succeeding = text[end_offset:min(len(text), end_offset + 30)].strip()
+        combined_context = f"{preceding} {stext} {succeeding}".upper()
+
+        if stype in ("FULL_NAME", "COMPANY_NAME"):
+            for legal_boilerplate in ["UNDER COMPANIES ACT", "PURSUANT TO SECTION", "AS DEFINED IN", "IN ACCORDANCE WITH", "SUBJECT TO THE PROVISIONS"]:
+                if legal_boilerplate in combined_context and stext_upper in legal_boilerplate:
+                    return False
+
         # Reject candidate FULL_NAME or COMPANY_NAME spans containing non-PII prospectus terms
         for non_pii_kw in ["OFFER", "ISSUE", "BID", "COMPANY", "GENERAL INFORMATION", "PROSPECTUS", "STATEMENT", "SECTION", "RISK", "SHAREHOLDER", "SCRR", "SCRA", "FEMA", "TYPE", "ELIGIBILITY", "AGGREGATE", "AMOUNT", "DETAILS", "PARTICULARS", "SUMMARY", "CERTAIN", "MATERIAL", "INFORMATION", "OBJECTS", "BASIS", "CAPITAL", "STRUCTURE"]:
             if non_pii_kw in stext_upper and stype in ("FULL_NAME", "COMPANY_NAME"):
@@ -80,8 +92,6 @@ class PIIRedactor:
                 return False
             words = stext.split()
             if len(words) < 2:
-                offset = span.get("start", 0)
-                preceding = text[max(0, offset - 15):offset].strip()
                 if not any(preceding.endswith(h) for h in ["Mr.", "Ms.", "Mrs.", "Dr.", "Prof.", "Shri", "Smt.", "Sri"]):
                     return False
             return True
@@ -387,7 +397,20 @@ class PIIRedactor:
                         ner_spans.append({"start": ent.start_char, "end": ent.end_char, "text": ent.text, "type": "COMPANY_NAME", "priority": 5})
 
         all_spans = [s for s in (regex_spans + ner_spans) if self.validate_span(s, text)]
-        return self._resolve_overlaps(all_spans)
+        cleaned_spans = []
+        for s in all_spans:
+            stext = text[s["start"]:s["end"]]
+            m_trim = re.search(r'^\s*(.*?)\s*[.,;:]?$', stext)
+            if m_trim and m_trim.group(1):
+                core = m_trim.group(1)
+                new_start = s["start"] + stext.find(core)
+                new_end = new_start + len(core)
+                s["start"] = new_start
+                s["end"] = new_end
+                s["text"] = core
+            cleaned_spans.append(s)
+
+        return self._resolve_overlaps(cleaned_spans)
 
     def _resolve_overlaps(self, spans: List[Dict]) -> List[Dict]:
         if not spans:

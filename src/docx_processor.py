@@ -154,8 +154,21 @@ class DocxProcessor:
         return len(spans), cats
 
     def _apply_run_replacements(self, paragraph, spans: List[Dict]):
-        if not paragraph.runs:
+        if not paragraph.runs or not spans:
             return
+
+        # Snapshot run character boundaries BEFORE mutating text
+        run_map = []
+        curr = 0
+        for run in paragraph.runs:
+            rlen = len(run.text)
+            run_map.append({
+                "run": run,
+                "start": curr,
+                "end": curr + rlen,
+                "text": run.text
+            })
+            curr += rlen
 
         sorted_spans = sorted(spans, key=lambda s: s["start"], reverse=True)
         for span in sorted_spans:
@@ -163,22 +176,22 @@ class DocxProcessor:
             start_offset = span["start"]
             end_offset = span["end"]
 
-            current_pos = 0
-            for run in paragraph.runs:
-                run_len = len(run.text)
-                run_start = current_pos
-                run_end = current_pos + run_len
-                current_pos = run_end
+            for ritem in run_map:
+                run = ritem["run"]
+                r_start = ritem["start"]
+                r_end = ritem["end"]
 
-                if max(run_start, start_offset) < min(run_end, end_offset):
-                    if start_offset >= run_start and end_offset <= run_end:
-                        local_start = start_offset - run_start
-                        local_end = end_offset - run_start
+                if max(r_start, start_offset) < min(r_end, end_offset):
+                    if start_offset >= r_start and end_offset <= r_end:
+                        local_start = start_offset - r_start
+                        local_end = end_offset - r_start
                         run.text = run.text[:local_start] + replacement + run.text[local_end:]
                     else:
-                        local_start = max(0, start_offset - run_start)
-                        local_end = min(run_len, end_offset - run_start)
-                        if run_start <= start_offset < run_end:
+                        local_start = max(0, start_offset - r_start)
+                        local_end = min(r_end - r_start, end_offset - r_start)
+                        if r_start <= start_offset < r_end:
                             run.text = run.text[:local_start] + replacement
-                        else:
+                        elif r_start < end_offset <= r_end:
                             run.text = run.text[local_end:]
+                        else:
+                            run.text = ""
