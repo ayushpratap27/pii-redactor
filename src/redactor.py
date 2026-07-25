@@ -15,8 +15,25 @@ class PIIRedactor:
         "CONTACT PERSON", "EQUITY SHARES", "BOOK BUILT OFFER", "GENERAL INFORMATION",
         "PAGE", "DETAILS OF THE OFFER", "TOTAL OFFER SIZE", "ELIGIBILITY",
         "STATEMENT OF", "FINANCIAL STATEMENTS", "BOARD OF DIRECTORS", "RISK FACTORS",
-        "TAX ID", "SSN", "DOB", "IP", "CREDIT CARD", "TELEPHONE", "EMAIL", "WEBSITE"
+        "TAX ID", "SSN", "DOB", "IP", "CREDIT CARD", "TELEPHONE", "EMAIL", "WEBSITE",
+        "OFFER", "ISSUE", "BOOK BUILDING PROCESS", "BOOK BUILDING", "REGISTRAR OF COMPANIES",
+        "ROC", "SEBI", "BSE", "NSE", "STOCK EXCHANGES", "STOCK EXCHANGE",
+        "RESERVE BANK OF INDIA", "RBI", "MINISTRY OF CORPORATE AFFAIRS", "MCA",
+        "DRAFT RED HERRING PROSPECTUS", "DRHP", "RHP", "PROSPECTUS", "PROMOTER GROUP",
+        "KEY MANAGERIAL PERSONNEL", "KMP", "STATUTORY AUDITOR", "AUDITOR'S REPORT",
+        "NATIONAL STOCK EXCHANGE", "BOMBAY STOCK EXCHANGE"
     }
+
+    def is_non_pii(self, text: str) -> bool:
+        clean = re.sub(r'^\W+|\W+$', '', text.strip().upper())
+        if not clean:
+            return True
+        if clean in self.NON_PII_WORDS:
+            return True
+        for non_pii in self.NON_PII_WORDS:
+            if len(non_pii) > 3 and (clean == non_pii or f" {non_pii} " in f" {clean} "):
+                return True
+        return False
 
     def __init__(self, seed: int = 42):
         self.fake = Faker("en_US")
@@ -119,9 +136,9 @@ class PIIRedactor:
         ner_spans = []
         doc = self.nlp(text)
         for ent in doc.ents:
-            ent_txt_upper = ent.text.strip().upper()
-            if any(non_pii in ent_txt_upper for non_pii in self.NON_PII_WORDS):
+            if self.is_non_pii(ent.text):
                 continue
+            ent_txt_upper = ent.text.strip().upper()
             if ent.label_ == "PERSON" and len(ent.text.strip()) > 2:
                 if not any(kw in ent_txt_upper for kw in ["SSN", "TAX", "ID", "TALUKA"]):
                     ner_spans.append({"start": ent.start_char, "end": ent.end_char, "text": ent.text, "type": "FULL_NAME", "priority": 5})
@@ -129,7 +146,7 @@ class PIIRedactor:
                 if any(kw in ent.text.upper() for kw in ["LTD", "LIMITED", "INC", "CORP", "BANK", "SECURITIES", "TRUST"]):
                     ner_spans.append({"start": ent.start_char, "end": ent.end_char, "text": ent.text, "type": "COMPANY_NAME", "priority": 5})
 
-        all_spans = regex_spans + ner_spans
+        all_spans = [s for s in (regex_spans + ner_spans) if not self.is_non_pii(s["text"])]
         return self._resolve_overlaps(all_spans)
 
     def _resolve_overlaps(self, spans: List[Dict]) -> List[Dict]:
