@@ -16,13 +16,17 @@ class PIIRedactor:
         "PAGE", "DETAILS OF THE OFFER", "TOTAL OFFER SIZE", "ELIGIBILITY",
         "STATEMENT OF", "FINANCIAL STATEMENTS", "BOARD OF DIRECTORS", "RISK FACTORS",
         "TAX ID", "SSN", "DOB", "IP", "CREDIT CARD", "TELEPHONE", "EMAIL", "WEBSITE",
-        "OFFER", "ISSUE", "BOOK BUILDING PROCESS", "BOOK BUILDING", "REGISTRAR OF COMPANIES",
-        "ROC", "SEBI", "BSE", "NSE", "STOCK EXCHANGES", "STOCK EXCHANGE",
-        "RESERVE BANK OF INDIA", "RBI", "MINISTRY OF CORPORATE AFFAIRS", "MCA",
-        "DRAFT RED HERRING PROSPECTUS", "DRHP", "RHP", "PROSPECTUS", "PROMOTER GROUP",
-        "KEY MANAGERIAL PERSONNEL", "KMP", "STATUTORY AUDITOR", "AUDITOR'S REPORT",
-        "NATIONAL STOCK EXCHANGE", "BOMBAY STOCK EXCHANGE", "DIRECTOR", "SECRETARY",
-        "COMPLIANCE OFFICER", "COMPANY SECRETARY", "MANAGER", "CHAIRMAN", "MANAGING DIRECTOR",
+        "OFFER", "OFFER PRICE", "OFFER FOR SALE", "NET OFFER", "OFFER PERIOD", "ISSUE",
+        "BOOK BUILDING PROCESS", "BOOK BUILDING", "BID", "BID/OFFER", "BID / OFFER",
+        "RISK", "OUR COMPANY", "COMPANY", "ISSUER COMPANY", "PROMOTER", "PROMOTERS",
+        "PROMOTER GROUP", "SHAREHOLDER", "SHAREHOLDERS", "EQUITY SHAREHOLDER",
+        "EQUITY SHAREHOLDERS", "REGISTRAR OF COMPANIES", "ROC", "SEBI", "BSE", "NSE",
+        "STOCK EXCHANGES", "STOCK EXCHANGE", "RESERVE BANK OF INDIA", "RBI",
+        "MINISTRY OF CORPORATE AFFAIRS", "MCA", "DRAFT RED HERRING PROSPECTUS",
+        "DRHP", "RHP", "PROSPECTUS", "KEY MANAGERIAL PERSONNEL", "KMP",
+        "STATUTORY AUDITOR", "AUDITOR'S REPORT", "NATIONAL STOCK EXCHANGE",
+        "BOMBAY STOCK EXCHANGE", "DIRECTOR", "SECRETARY", "COMPLIANCE OFFICER",
+        "COMPANY SECRETARY", "MANAGER", "CHAIRMAN", "MANAGING DIRECTOR",
         "CHIEF FINANCIAL OFFICER", "CFO", "CEO", "NOTICE", "STATEMENT", "SECTION"
     }
 
@@ -32,8 +36,12 @@ class PIIRedactor:
             return True
         if clean in self.NON_PII_WORDS:
             return True
+        clean_norm = re.sub(r'[/\\_-]', ' ', clean)
+        clean_norm = re.sub(r'\s+', ' ', clean_norm).strip()
+        if clean_norm in self.NON_PII_WORDS:
+            return True
         for non_pii in self.NON_PII_WORDS:
-            if len(non_pii) > 3 and (clean == non_pii or f" {non_pii} " in f" {clean} "):
+            if len(non_pii) >= 3 and (clean == non_pii or clean_norm == non_pii or f" {non_pii} " in f" {clean_norm} "):
                 return True
         return False
 
