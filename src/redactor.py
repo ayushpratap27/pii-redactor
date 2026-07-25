@@ -27,7 +27,10 @@ class PIIRedactor:
         "STATUTORY AUDITOR", "AUDITOR'S REPORT", "NATIONAL STOCK EXCHANGE",
         "BOMBAY STOCK EXCHANGE", "DIRECTOR", "SECRETARY", "COMPLIANCE OFFICER",
         "COMPANY SECRETARY", "MANAGER", "CHAIRMAN", "MANAGING DIRECTOR",
-        "CHIEF FINANCIAL OFFICER", "CFO", "CEO", "NOTICE", "STATEMENT", "SECTION"
+        "CHIEF FINANCIAL OFFICER", "CFO", "CEO", "NOTICE", "STATEMENT", "SECTION",
+        "THE COMPANY", "A COMPANY", "PUBLIC COMPANY", "PRIVATE COMPANY",
+        "COMPANY INCORPORATION", "COMPANY LIMITED BY SHARES", "LISTED COMPANY",
+        "UNLISTED COMPANY", "COMPANY LIMITED", "HOLDING COMPANY", "SUBSIDIARY COMPANY"
     }
 
     def is_non_pii(self, text: str) -> bool:
@@ -61,6 +64,9 @@ class PIIRedactor:
             return True
 
         elif stype == "COMPANY_NAME":
+            stext_upper = stext.strip().upper()
+            if any(generic in stext_upper for generic in ["OUR COMPANY", "THE COMPANY", "PUBLIC COMPANY", "PRIVATE COMPANY", "LIMITED BY SHARES", "HOLDING COMPANY"]):
+                return False
             return bool(self.company_suffix_re.search(stext))
 
         elif stype == "PHONE_NUMBER":
