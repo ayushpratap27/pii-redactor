@@ -21,7 +21,9 @@ class PIIRedactor:
         "RESERVE BANK OF INDIA", "RBI", "MINISTRY OF CORPORATE AFFAIRS", "MCA",
         "DRAFT RED HERRING PROSPECTUS", "DRHP", "RHP", "PROSPECTUS", "PROMOTER GROUP",
         "KEY MANAGERIAL PERSONNEL", "KMP", "STATUTORY AUDITOR", "AUDITOR'S REPORT",
-        "NATIONAL STOCK EXCHANGE", "BOMBAY STOCK EXCHANGE"
+        "NATIONAL STOCK EXCHANGE", "BOMBAY STOCK EXCHANGE", "DIRECTOR", "SECRETARY",
+        "COMPLIANCE OFFICER", "COMPANY SECRETARY", "MANAGER", "CHAIRMAN", "MANAGING DIRECTOR",
+        "CHIEF FINANCIAL OFFICER", "CFO", "CEO", "NOTICE", "STATEMENT", "SECTION"
     }
 
     def is_non_pii(self, text: str) -> bool:
@@ -66,6 +68,7 @@ class PIIRedactor:
         self.promoter_re = re.compile(r'OUR PROMOTERS:\s*([^.\n]+)', re.I)
         self.address_re = re.compile(r'(?:REGISTERED OFFICE|CORPORATE OFFICE):\s*([^.\n]+)', re.I)
         self.company_suffix_re = re.compile(r'\b(?:PVT\.?|PRIVATE|LIMITED|LTD\.?|INC\.?|CORP\.?|CORPORATION|LLP|PLC)\b', re.I)
+        self.honorific_name_re = re.compile(r'\b(?:Mr\.|Ms\.|Mrs\.|Dr\.|Prof\.|Shri|Smt\.|Sri)\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*)\b')
 
     def detect_entities(self, text: str) -> List[Dict]:
         if not text or not text.strip():
@@ -133,7 +136,13 @@ class PIIRedactor:
                     if idx != -1:
                         regex_spans.append({"start": idx, "end": idx + len(clean), "text": clean, "type": "FULL_NAME", "priority": 9})
 
-        # 10. NER Spans (Lower priority)
+        # 10. Honorific Names Context Extractor
+        for m in self.honorific_name_re.finditer(text):
+            name_part = m.group(1).strip()
+            if not self.is_non_pii(name_part):
+                regex_spans.append({"start": m.start(1), "end": m.end(1), "text": name_part, "type": "FULL_NAME", "priority": 9})
+
+        # 11. NER Spans (Lower priority)
         ner_spans = []
         doc = self.nlp(text)
         for ent in doc.ents:
@@ -142,7 +151,15 @@ class PIIRedactor:
             ent_txt_upper = ent.text.strip().upper()
             if ent.label_ == "PERSON" and len(ent.text.strip()) > 2:
                 if not any(kw in ent_txt_upper for kw in ["SSN", "TAX", "ID", "TALUKA"]):
-                    ner_spans.append({"start": ent.start_char, "end": ent.end_char, "text": ent.text, "type": "FULL_NAME", "priority": 5})
+                    # Expand contiguous capitalized tokens to avoid partial name replacements
+                    start = ent.start_char
+                    end = ent.end_char
+                    match_right = re.match(r'^(\s+[A-Z][a-zA-Z]+)', text[end:])
+                    if match_right:
+                        end += len(match_right.group(1))
+                    full_name_candidate = text[start:end].strip()
+                    if not self.is_non_pii(full_name_candidate):
+                        ner_spans.append({"start": start, "end": end, "text": full_name_candidate, "type": "FULL_NAME", "priority": 5})
             elif ent.label_ == "ORG" and len(ent.text.strip()) > 3:
                 if self.company_suffix_re.search(ent.text):
                     if not any(generic in ent_txt_upper for generic in ["CORPORATE OFFICE", "BANKING REGULATION", "CORPORATE GOVERNANCE", "REGISTRATION"]):
