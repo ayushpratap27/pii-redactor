@@ -144,7 +144,8 @@ class PIIRedactor:
             re.I
         )
         self.pincode_address_re = re.compile(
-            r'\b(?:\d{1,4}[,\s]+[\w\s.,-]{5,100}[,\s]+(?:\d{6}|[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s*-\s*\d{6}))\b'
+            r'\b(?:(?:Flat|Plot|Floor|Door|Survey|House|Bldg|Building|Suite|F\.?No\.?|No\.?)\s+[\w\d\s.,/-]+,?\s+)*(?:\d{1,4}[,\s]+)?[\w\s.,-]{5,100}[,\s]+(?:\d{6}|[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s*-\s*\d{6})\b',
+            re.I
         )
         self.company_suffix_re = re.compile(r'\b(?:PVT\.?|PRIVATE|LIMITED|LTD\.?|INC\.?|CORP\.?|CORPORATION|LLP|PLC)\b', re.I)
         self.honorific_name_re = re.compile(r'\b(?:Mr\.|Ms\.|Mrs\.|Dr\.|Prof\.|Shri|Smt\.|Sri)\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*)\b')
