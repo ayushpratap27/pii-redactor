@@ -1,5 +1,6 @@
 import docx
 import sys
+import re
 from typing import Dict, Tuple, List, Callable, Optional
 from redactor import PIIRedactor
 
@@ -110,9 +111,34 @@ class DocxProcessor:
             "mapping_count": len(self.redactor.entity_map)
         }
 
+    def _is_structural_content(self, paragraph) -> bool:
+        text = paragraph.text.strip()
+        if not text:
+            return True
+
+        # Style check
+        style_name = getattr(paragraph.style, 'name', '') if paragraph.style else ''
+        style_upper = style_name.upper()
+        if any(s in style_upper for s in ['TOC', 'TABLE OF CONTENTS', 'HEADING', 'TITLE', 'SUBTITLE', 'HEADER']):
+            return True
+
+        # Text-based TOC check (dot leaders or page numbers)
+        if '....' in text or '…' in text or re.search(r'\.{3,}\s*\d+$', text):
+            return True
+
+        # Section Header check
+        if text.isupper() and len(text.split()) <= 8 and any(kw in text for kw in ['SECTION', 'TABLE OF CONTENTS', 'CHAPTER', 'PART', 'ANNEXURE', 'EXHIBIT', 'INDEX']):
+            return True
+
+        # Glossary / Definition check
+        if re.match(r'^(?:["“\'][^"“\'”]+["”\']|[A-Z0-9\s/._-]{2,30})\s*(?:means|includes|refers to|shall mean|shall include)\b', text, re.I):
+            return True
+
+        return False
+
     def _redact_paragraph(self, paragraph) -> Tuple[int, Dict[str, int]]:
         text = paragraph.text
-        if not text or not text.strip():
+        if not text or not text.strip() or self._is_structural_content(paragraph):
             return 0, {}
 
         spans = self.redactor.detect_entities(text)

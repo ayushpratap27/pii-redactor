@@ -31,7 +31,11 @@ class PIIRedactor:
         "THE COMPANY", "A COMPANY", "PUBLIC COMPANY", "PRIVATE COMPANY",
         "COMPANY INCORPORATION", "COMPANY LIMITED BY SHARES", "LISTED COMPANY",
         "UNLISTED COMPANY", "COMPANY LIMITED", "HOLDING COMPANY", "SUBSIDIARY COMPANY",
-        "SCRR", "SCRA", "FEMA", "ICDR", "LODR", "IFSC", "IGST", "CGST", "SGST", "GSTIN", "TAN"
+        "SCRR", "SCRA", "FEMA", "ICDR", "LODR", "IFSC", "IGST", "CGST", "SGST", "GSTIN", "TAN",
+        "TYPE", "SERIES", "CLASS", "BIDDING PROCESS", "CUT OFF", "RETAIL INDIVIDUAL",
+        "EMPLOYEE RESERVATION", "DETAILS", "PARTICULARS", "SUMMARY", "CERTAIN", "MATERIAL",
+        "INFORMATION", "OBJECTS", "BASIS", "CAPITAL", "STRUCTURE", "AGGREGATE AMOUNT",
+        "ELIGIBILITY CRITERIA", "SUMMARY OF THE OFFER"
     }
 
     REGULATORY_DOMAINS = {
@@ -65,25 +69,26 @@ class PIIRedactor:
 
         stext_upper = stext.upper()
         # Reject candidate FULL_NAME or COMPANY_NAME spans containing non-PII prospectus terms
-        for non_pii_kw in ["OFFER", "ISSUE", "BID", "COMPANY", "GENERAL INFORMATION", "PROSPECTUS", "STATEMENT", "SECTION", "RISK", "SHAREHOLDER", "SCRR", "SCRA", "FEMA"]:
+        for non_pii_kw in ["OFFER", "ISSUE", "BID", "COMPANY", "GENERAL INFORMATION", "PROSPECTUS", "STATEMENT", "SECTION", "RISK", "SHAREHOLDER", "SCRR", "SCRA", "FEMA", "TYPE", "ELIGIBILITY", "AGGREGATE", "AMOUNT", "DETAILS", "PARTICULARS", "SUMMARY", "CERTAIN", "MATERIAL", "INFORMATION", "OBJECTS", "BASIS", "CAPITAL", "STRUCTURE"]:
             if non_pii_kw in stext_upper and stype in ("FULL_NAME", "COMPANY_NAME"):
                 return False
 
         if stype == "FULL_NAME":
             if any(char.isdigit() for char in stext):
                 return False
-            if any(term in f" {stext} " for term in [" the ", " of ", " and ", " in ", " for ", " to ", " with ", " on ", " by "]):
+            if any(term in f" {stext.lower()} " for term in [" the ", " of ", " and ", " in ", " for ", " to ", " with ", " on ", " by ", " or ", " as ", " at ", " from "]):
                 return False
-            if len(stext.split()) < 2:
+            words = stext.split()
+            if len(words) < 2:
                 offset = span.get("start", 0)
-                preceding = text[max(0, offset - 12):offset].strip()
+                preceding = text[max(0, offset - 15):offset].strip()
                 if not any(preceding.endswith(h) for h in ["Mr.", "Ms.", "Mrs.", "Dr.", "Prof.", "Shri", "Smt.", "Sri"]):
                     return False
             return True
 
         elif stype == "COMPANY_NAME":
             stext_upper = stext.strip().upper()
-            if any(generic in stext_upper for generic in ["OUR COMPANY", "THE COMPANY", "PUBLIC COMPANY", "PRIVATE COMPANY", "LIMITED BY SHARES", "HOLDING COMPANY", "SCRR", "SCRA", "FEMA", "ICDR", "LODR"]):
+            if any(generic in stext_upper for generic in ["OUR COMPANY", "THE COMPANY", "PUBLIC COMPANY", "PRIVATE COMPANY", "LIMITED BY SHARES", "HOLDING COMPANY", "SCRR", "SCRA", "FEMA", "ICDR", "LODR", "ISSUER COMPANY", "GROUP COMPANY"]):
                 return False
             return bool(self.company_suffix_re.search(stext))
 
@@ -329,13 +334,6 @@ class PIIRedactor:
             if not self.is_non_pii(cand):
                 regex_spans.append({"start": m.start(), "end": m.end(), "text": cand, "type": "FULL_NAME", "priority": 9})
 
-        # 19. Table person names
-        for m in self.table_person_re.finditer(text):
-            cand = m.group().strip()
-            w1, w2 = cand.split()
-            if w1.upper() not in self.EXCL_WORDS and w2.upper() not in self.EXCL_WORDS and not self.is_non_pii(cand):
-                regex_spans.append({"start": m.start(), "end": m.end(), "text": cand, "type": "FULL_NAME", "priority": 6})
-
         # 20. Age
         for m in self.age_re.finditer(text):
             cand = m.group().strip()
@@ -424,69 +422,49 @@ class PIIRedactor:
         else:
             return f"{random.randint(6, 9)}{random.randint(100000000, 999999999)}"
 
-    def get_replacement(self, entity_text: str, entity_type: str) -> str:
+    def get_replacement(self, entity_text: str, entity_type: str, use_synthetic: bool = False) -> str:
         key = entity_text.strip().lower()
         if key in self.entity_map:
             return self.entity_map[key]
 
-        if entity_type == "FULL_NAME":
-            if entity_text.isupper():
-                synthetic = self.fake.name().upper()
-            elif entity_text.islower():
-                synthetic = self.fake.name().lower()
-            else:
-                synthetic = self.fake.name()
-        elif entity_type == "EMAIL":
-            email_val = f"{self.fake.first_name()}.{self.fake.last_name()}@example.org"
-            synthetic = email_val.upper() if entity_text.isupper() else email_val.lower()
-        elif entity_type == "PHONE_NUMBER":
-            synthetic = self._generate_synthetic_phone(entity_text)
-        elif entity_type == "COMPANY_NAME":
-            if entity_text.isupper():
-                synthetic = self.fake.company().upper()
-            elif entity_text.islower():
-                synthetic = self.fake.company().lower()
-            else:
-                synthetic = self.fake.company()
-        elif entity_type == "ADDRESS":
-            addr_val = f"{random.randint(10, 99)}, {self.fake.street_name()}, {self.fake.city()} - {random.randint(100000, 999999)}, India"
-            synthetic = addr_val.upper() if entity_text.isupper() else (addr_val.lower() if entity_text.islower() else addr_val)
-        elif entity_type == "SSN_TAX_ID":
-            if len(entity_text) == 10 and entity_text.isalnum():
-                synthetic = f"ABCDE{random.randint(1000, 9999)}K"
-            else:
-                synthetic = f"9{random.randint(10, 99)}-{random.randint(10, 99)}-{random.randint(1000, 9999)}"
-        elif entity_type == "CREDIT_CARD":
-            synthetic = self.fake.credit_card_number()
-        elif entity_type == "DATE_OF_BIRTH":
-            synthetic = self._generate_synthetic_date(entity_text)
-        elif entity_type == "IP_ADDRESS":
-            synthetic = f"192.0.2.{random.randint(1, 254)}"
-        elif entity_type == "CIN_DIN":
-            if "DIN" in entity_text.upper():
-                if entity_text.upper().startswith("DIN"):
-                    synthetic = f"DIN: {random.randint(10000000, 99999999)}"
-                else:
-                    synthetic = f"{random.randint(10000000, 99999999)}"
-            else:
-                synthetic = f"U{random.randint(10000, 99999)}MH2000PLC{random.randint(100000, 999999)}"
-        elif entity_type == "WEBSITE_URL":
-            url_val = "www.anonymized-domain.com"
-            synthetic = url_val.upper() if entity_text.isupper() else url_val.lower()
-        elif entity_type == "BANK_ACCOUNT":
-            synthetic = f"{random.randint(1000000000, 9999999999)}"
-        elif entity_type == "IFSC_CODE":
-            synthetic = f"SBIN00{random.randint(1000, 9999)}"
-        elif entity_type == "AADHAAR_NUMBER":
-            synthetic = f"{random.randint(1000, 9999)}-{random.randint(1000, 9999)}-{random.randint(1000, 9999)}"
-        elif entity_type == "AGE":
-            synthetic = f"Age: {random.randint(30, 65)} years"
-        elif entity_type == "PROFESSIONAL_MEMBERSHIP":
-            synthetic = f"FCS No. {random.randint(10000, 99999)}"
-        elif entity_type == "DESIGNATION":
-            synthetic = "[REDACTED DESIGNATION]"
+        if not use_synthetic:
+            labels = {
+                "FULL_NAME": "[REDACTED NAME]",
+                "COMPANY_NAME": "[REDACTED COMPANY]",
+                "ADDRESS": "[REDACTED ADDRESS]",
+                "EMAIL": "[REDACTED EMAIL]",
+                "PHONE_NUMBER": "[REDACTED PHONE]",
+                "DATE_OF_BIRTH": "[REDACTED DATE]",
+                "SSN_TAX_ID": "[REDACTED TAX ID]",
+                "CREDIT_CARD": "[REDACTED CREDIT CARD]",
+                "IP_ADDRESS": "[REDACTED IP]",
+                "CIN_DIN": "[REDACTED CIN/DIN]",
+                "WEBSITE_URL": "[REDACTED URL]",
+                "BANK_ACCOUNT": "[REDACTED BANK ACCOUNT]",
+                "IFSC_CODE": "[REDACTED IFSC]",
+                "AADHAAR_NUMBER": "[REDACTED AADHAAR]",
+                "DESIGNATION": "[REDACTED DESIGNATION]",
+                "AGE": "[REDACTED AGE]",
+                "PROFESSIONAL_MEMBERSHIP": "[REDACTED MEMBERSHIP]"
+            }
+            replacement = labels.get(entity_type, f"[REDACTED {entity_type}]")
         else:
-            synthetic = f"[REDACTED_{entity_type}]"
+            if entity_type == "FULL_NAME":
+                replacement = self.fake.name().upper() if entity_text.isupper() else (self.fake.name().lower() if entity_text.islower() else self.fake.name())
+            elif entity_type == "EMAIL":
+                email_val = f"{self.fake.first_name()}.{self.fake.last_name()}@example.org"
+                replacement = email_val.upper() if entity_text.isupper() else email_val.lower()
+            elif entity_type == "PHONE_NUMBER":
+                replacement = self._generate_synthetic_phone(entity_text)
+            elif entity_type == "COMPANY_NAME":
+                replacement = self.fake.company().upper() if entity_text.isupper() else (self.fake.company().lower() if entity_text.islower() else self.fake.company())
+            elif entity_type == "ADDRESS":
+                addr_val = f"{random.randint(10, 99)}, {self.fake.street_name()}, {self.fake.city()} - {random.randint(100000, 999999)}, India"
+                replacement = addr_val.upper() if entity_text.isupper() else (addr_val.lower() if entity_text.islower() else addr_val)
+            elif entity_type == "DATE_OF_BIRTH":
+                replacement = self._generate_synthetic_date(entity_text)
+            else:
+                replacement = f"[REDACTED_{entity_type}]"
 
-        self.entity_map[key] = synthetic
-        return synthetic
+        self.entity_map[key] = replacement
+        return replacement
