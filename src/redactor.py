@@ -90,6 +90,14 @@ class PIIRedactor:
         elif stype == "WEBSITE_URL":
             return not self.is_non_pii(stext)
 
+        elif stype == "SSN_TAX_ID":
+            clean_id = re.sub(r'\s|-', '', stext.upper())
+            return len(clean_id) in (9, 10)
+
+        elif stype == "CIN_DIN":
+            clean_cd = re.sub(r'\s|-', '', stext.upper())
+            return len(clean_cd) in (8, 21) or "DIN" in clean_cd
+
         return True
 
     def __init__(self, seed: int = 42):
