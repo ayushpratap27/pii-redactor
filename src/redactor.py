@@ -153,6 +153,47 @@ class PIIRedactor:
         self.company_suffix_re = re.compile(r'\b(?:PVT\.?|PRIVATE|LIMITED|LTD\.?|INC\.?|CORP\.?|CORPORATION|LLP|PLC)\b', re.I)
         self.honorific_name_re = re.compile(r'\b(?:Mr\.|Ms\.|Mrs\.|Dr\.|Prof\.|Shri|Smt\.|Sri)\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*)\b')
         self.all_caps_name_re = re.compile(r'\b[A-Z]{2,}(?:\s+[A-Z]{2,}){1,3}\b')
+        self.account_re = re.compile(r'\b(?:Account No\.|A/c No\.|Account Number|Bank Account No\.|A/C):\s*(\d{9,18})\b', re.I)
+        self.ifsc_re = re.compile(r'\b[A-Z]{4}0[A-Z0-9]{6}\b')
+        self.aadhaar_re = re.compile(r'\b[2-9]\d{3}[\s-]?\d{4}[\s-]?\d{4}\b')
+        self.membership_re = re.compile(r'\b(?:FCS|FCA|ACS|ACA|COP|Membership)\s*(?:No\.?|Number)?:?\s*\d{4,6}\b', re.I)
+        self.designation_re = re.compile(
+            r'\b(?:Managing Director|Executive Director|Non-Executive Director|Independent Director|Whole-time Director|Chief Financial Officer|Company Secretary|Compliance Officer|Statutory Auditor|Chief Executive Officer|Chairman and Managing Director|Promoter Director|Key Managerial Personnel|Company Secretary & Compliance Officer|Lead Manager|Book Running Lead Manager|Registrar to the Offer|Legal Counsel|Auditor|Bankers to the Offer|Registrar and Share Transfer Agent)\b',
+            re.I
+        )
+        self.role_name_re = re.compile(
+            r'(?:DIRECTOR|PROMOTER|CHAIRMAN|CFO|COMPANY SECRETARY|MANAGER|SECRETARY|AUDITOR|MANAGING DIRECTOR|EXECUTIVE DIRECTOR|NAME|SIGNED BY|SD/-|KEY MANAGERIAL PERSONNEL):\s*([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*)',
+            re.I
+        )
+        self.initials_name_re = re.compile(r'\b(?:[A-Z]\.\s*){1,3}[A-Z][a-zA-Z]+\b')
+        self.age_re = re.compile(r'\b(?:Aged?\s*:?\s*\d{1,2}(?:\s*years)?|\d{1,2}\s*years of age)\b', re.I)
+        self.table_person_re = re.compile(r'\b[A-Z][a-z]{3,}\s+[A-Z][a-z]{3,}\b')
+        self.EXCL_WORDS = {
+            'SECTION', 'TABLE', 'DIRECTOR', 'SECRETARY', 'LIMITED', 'COMPANY', 'OFFER', 'ISSUE', 'BOARD', 'REPORT',
+            'PROSPECTUS', 'GENERAL', 'REGISTERED', 'OFFICE', 'FINANCIAL', 'STATEMENT', 'CAPITAL', 'SHARES', 'EQUITY',
+            'RISK', 'FACTORS', 'PUBLIC', 'PRIVATE', 'SUMMARY', 'LEGAL', 'MATTERS', 'OTHER', 'REGULATORY', 'CERTAIN',
+            'DEBT', 'SECURITIES', 'INDIAN', 'NATIONAL', 'CENTRAL', 'RULES', 'RIGHTS', 'TERM', 'DATE', 'PRICE', 'AMOUNT',
+            'VALUE', 'TYPE', 'CLASS', 'NAME', 'FORM', 'COST', 'FEE', 'PAYMENT', 'TAX', 'BANK', 'LOAN', 'CREDIT',
+            'DEBIT', 'FUND', 'MONEY', 'DECLARATION', 'DISCLOSURE', 'ANNEXURE', 'EXHIBIT', 'INDEX', 'CHAPTER', 'PROVISION',
+            'PART', 'CLAUSE', 'SCHEDULE', 'SUBSECTION', 'PARAGRAPH', 'RECORD', 'PERIOD', 'YEAR', 'MONTH', 'DAY', 'TOTAL',
+            'NET', 'GROSS', 'AVERAGE', 'MAXIMUM', 'MINIMUM', 'FIRST', 'SECOND', 'THIRD', 'FOURTH', 'FIFTH', 'HIGH',
+            'LOW', 'NEW', 'OLD', 'LAST', 'PAST', 'FUTURE', 'MAIN', 'KEY', 'CORE', 'BASE', 'NOTE', 'NOTES', 'LIST',
+            'ITEM', 'ITEMS', 'UNIT', 'UNITS', 'PAGE', 'PAGES', 'LINE', 'LINES', 'TEXT', 'INFO', 'DATA', 'AUDITOR',
+            'AUDITORS', 'COMPLIANCE', 'OFFICER', 'PROMOTER', 'PROMOTERS', 'SHAREHOLDER', 'SHAREHOLDERS', 'DIRECTORS',
+            'MANAGEMENT', 'CORPORATE', 'BUSINESS', 'INDUSTRY', 'MARKET', 'MARKETS', 'EXCHANGE', 'EXCHANGES', 'SEBI',
+            'RESERVE', 'REGISTRAR', 'MANAGERS', 'UNDERWRITERS', 'SYNDICATE', 'SPONSOR', 'DEPOSITORY', 'PARTICIPANT',
+            'CLEARING', 'MEMBERS', 'TRANSFER', 'AGENT', 'AGENTS', 'MERCHANT', 'BANKER', 'BANKERS', 'ADVISOR', 'ADVISORS',
+            'COUNSEL', 'SOLICITOR', 'SOLICITORS', 'CHARTERED', 'ACCOUNTANT', 'ACCOUNTANTS', 'SECRETARIAL', 'COST',
+            'VALUER', 'VALUERS', 'REGISTERED', 'HEAD', 'BRANCH', 'REGISTER', 'MEMBERSHIP', 'NUMBER', 'DRAFT',
+            'HERRING', 'RED', 'BIDDING', 'PROCESS', 'BOOK', 'BUILDING', 'FLOOR', 'CAP', 'CUT', 'OFF', 'RESERVATION',
+            'PORTION', 'NET', 'RETAIL', 'INDIVIDUAL', 'NON', 'INSTITUTIONAL', 'QUALIFIED', 'BUYERS', 'EMPLOYEE',
+            'EMPLOYEES', 'PROMOTER', 'GROUP', 'SELLING', 'SHAREHOLDER', 'FRESH', 'SALE', 'ALLOTMENT', 'BASIS',
+            'LOCK', 'IN', 'PLEDGE', 'ENCUMBRANCE', 'DEMAT', 'PHYSICAL', 'TRADING', 'LISTING', 'APPROVAL', 'APPROVALS',
+            'CONSENT', 'CONSENTS', 'FILING', 'REGISTRATION', 'INCORPORATION', 'MEMORANDUM', 'ARTICLES', 'ASSOCIATION',
+            'AGREEMENT', 'AGREEMENTS', 'CONTRACT', 'CONTRACTS', 'MATERIAL', 'PROCEEDINGS', 'LITIGATION', 'DISPUTE',
+            'DISPUTES', 'CLAIMS', 'TAXATION', 'DIRECT', 'INDIRECT', 'INCOME', 'GST', 'CUSTOMS', 'EXCISE', 'DUTY',
+            'PENALTY', 'INTEREST', 'DEMAND', 'APPEAL', 'APPEALS', 'COURT', 'TRIBUNAL', 'AUTHORITY', 'AUTHORITIES'
+        }
 
     def detect_entities(self, text: str) -> List[Dict]:
         if not text or not text.strip():
@@ -250,6 +291,55 @@ class PIIRedactor:
             if not self.is_non_pii(cand) and len(cand.split()) >= 2:
                 if not any(kw in cand for kw in ["SECTION", "TABLE", "DIRECTOR", "SECRETARY", "LIMITED", "COMPANY", "OFFER", "ISSUE", "BOARD", "REPORT", "PROSPECTUS", "GENERAL", "IDENTITY", "NUMBER", "CORPORATE", "REGISTERED", "OFFICE"]):
                     regex_spans.append({"start": m.start(), "end": m.end(), "text": cand, "type": "FULL_NAME", "priority": 8})
+
+        # 12. Bank Accounts
+        for m in self.account_re.finditer(text):
+            cand = m.group(1).strip()
+            regex_spans.append({"start": m.start(1), "end": m.end(1), "text": cand, "type": "BANK_ACCOUNT", "priority": 10})
+
+        # 13. IFSC Codes
+        for m in self.ifsc_re.finditer(text):
+            cand = m.group().strip()
+            regex_spans.append({"start": m.start(), "end": m.end(), "text": cand, "type": "IFSC_CODE", "priority": 10})
+
+        # 14. Aadhaar Numbers
+        for m in self.aadhaar_re.finditer(text):
+            cand = m.group().strip()
+            regex_spans.append({"start": m.start(), "end": m.end(), "text": cand, "type": "AADHAAR_NUMBER", "priority": 10})
+
+        # 15. Professional Memberships
+        for m in self.membership_re.finditer(text):
+            cand = m.group().strip()
+            regex_spans.append({"start": m.start(), "end": m.end(), "text": cand, "type": "PROFESSIONAL_MEMBERSHIP", "priority": 9})
+
+        # 16. Designations
+        for m in self.designation_re.finditer(text):
+            cand = m.group().strip()
+            regex_spans.append({"start": m.start(), "end": m.end(), "text": cand, "type": "DESIGNATION", "priority": 7})
+
+        # 17. Role-based names
+        for m in self.role_name_re.finditer(text):
+            cand = m.group(1).strip()
+            if not self.is_non_pii(cand) and len(cand.split()) >= 2:
+                regex_spans.append({"start": m.start(1), "end": m.end(1), "text": cand, "type": "FULL_NAME", "priority": 9})
+
+        # 18. Initials names
+        for m in self.initials_name_re.finditer(text):
+            cand = m.group().strip()
+            if not self.is_non_pii(cand):
+                regex_spans.append({"start": m.start(), "end": m.end(), "text": cand, "type": "FULL_NAME", "priority": 9})
+
+        # 19. Table person names
+        for m in self.table_person_re.finditer(text):
+            cand = m.group().strip()
+            w1, w2 = cand.split()
+            if w1.upper() not in self.EXCL_WORDS and w2.upper() not in self.EXCL_WORDS and not self.is_non_pii(cand):
+                regex_spans.append({"start": m.start(), "end": m.end(), "text": cand, "type": "FULL_NAME", "priority": 6})
+
+        # 20. Age
+        for m in self.age_re.finditer(text):
+            cand = m.group().strip()
+            regex_spans.append({"start": m.start(), "end": m.end(), "text": cand, "type": "AGE", "priority": 8})
 
         # 11. NER Spans (Lower priority)
         ner_spans = []
@@ -383,6 +473,18 @@ class PIIRedactor:
         elif entity_type == "WEBSITE_URL":
             url_val = "www.anonymized-domain.com"
             synthetic = url_val.upper() if entity_text.isupper() else url_val.lower()
+        elif entity_type == "BANK_ACCOUNT":
+            synthetic = f"{random.randint(1000000000, 9999999999)}"
+        elif entity_type == "IFSC_CODE":
+            synthetic = f"SBIN00{random.randint(1000, 9999)}"
+        elif entity_type == "AADHAAR_NUMBER":
+            synthetic = f"{random.randint(1000, 9999)}-{random.randint(1000, 9999)}-{random.randint(1000, 9999)}"
+        elif entity_type == "AGE":
+            synthetic = f"Age: {random.randint(30, 65)} years"
+        elif entity_type == "PROFESSIONAL_MEMBERSHIP":
+            synthetic = f"FCS No. {random.randint(10000, 99999)}"
+        elif entity_type == "DESIGNATION":
+            synthetic = "[REDACTED DESIGNATION]"
         else:
             synthetic = f"[REDACTED_{entity_type}]"
 
