@@ -128,6 +128,7 @@ class PIIRedactor:
         # Compile regexes
         self.email_re = re.compile(r'\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b', re.I)
         self.url_re = re.compile(r'\b(?:https?://|www\.)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:/[^\s]*)?\b', re.I)
+        self.website_label_re = re.compile(r'\bWebsite:\s*([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b', re.I)
         self.ssn_re = re.compile(r'\b(?!000|666|9\d{2})\d{3}[-\s]?(?!00)\d{2}[-\s]?(?!0000)\d{4}\b')
         self.pan_re = re.compile(r'\b[A-Z]{5}[0-9]{4}[A-Z]{1}\b')
         self.card_re = re.compile(r'\b(?:\d[ -]*?){13,19}\b')
@@ -166,6 +167,11 @@ class PIIRedactor:
             url_txt = m.group().strip()
             if not self.is_non_pii(url_txt):
                 regex_spans.append({"start": m.start(), "end": m.end(), "text": url_txt, "type": "WEBSITE_URL", "priority": 10})
+
+        for m in self.website_label_re.finditer(text):
+            domain_txt = m.group(1).strip()
+            if not self.is_non_pii(domain_txt):
+                regex_spans.append({"start": m.start(1), "end": m.end(1), "text": domain_txt, "type": "WEBSITE_URL", "priority": 10})
 
         # 2. Phone Numbers
         for match in phonenumbers.PhoneNumberMatcher(text, "IN"):
