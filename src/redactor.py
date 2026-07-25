@@ -65,6 +65,7 @@ class PIIRedactor:
         self.din_re = re.compile(r'\b(?:DIN|DIN:)\s*\d{8}\b', re.I)
         self.promoter_re = re.compile(r'OUR PROMOTERS:\s*([^.\n]+)', re.I)
         self.address_re = re.compile(r'(?:REGISTERED OFFICE|CORPORATE OFFICE):\s*([^.\n]+)', re.I)
+        self.company_suffix_re = re.compile(r'\b(?:PVT\.?|PRIVATE|LIMITED|LTD\.?|INC\.?|CORP\.?|CORPORATION|LLP|PLC)\b', re.I)
 
     def detect_entities(self, text: str) -> List[Dict]:
         if not text or not text.strip():
@@ -143,8 +144,9 @@ class PIIRedactor:
                 if not any(kw in ent_txt_upper for kw in ["SSN", "TAX", "ID", "TALUKA"]):
                     ner_spans.append({"start": ent.start_char, "end": ent.end_char, "text": ent.text, "type": "FULL_NAME", "priority": 5})
             elif ent.label_ == "ORG" and len(ent.text.strip()) > 3:
-                if any(kw in ent.text.upper() for kw in ["LTD", "LIMITED", "INC", "CORP", "BANK", "SECURITIES", "TRUST"]):
-                    ner_spans.append({"start": ent.start_char, "end": ent.end_char, "text": ent.text, "type": "COMPANY_NAME", "priority": 5})
+                if self.company_suffix_re.search(ent.text):
+                    if not any(generic in ent_txt_upper for generic in ["CORPORATE OFFICE", "BANKING REGULATION", "CORPORATE GOVERNANCE", "REGISTRATION"]):
+                        ner_spans.append({"start": ent.start_char, "end": ent.end_char, "text": ent.text, "type": "COMPANY_NAME", "priority": 5})
 
         all_spans = [s for s in (regex_spans + ner_spans) if not self.is_non_pii(s["text"])]
         return self._resolve_overlaps(all_spans)
