@@ -70,6 +70,8 @@ class PIIRedactor:
                 return False
 
         if stype == "FULL_NAME":
+            if any(char.isdigit() for char in stext):
+                return False
             if any(term in f" {stext} " for term in [" the ", " of ", " and ", " in ", " for ", " to ", " with ", " on ", " by "]):
                 return False
             if len(stext.split()) < 2:
