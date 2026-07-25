@@ -37,6 +37,37 @@ class PIIRedactor:
                 return True
         return False
 
+    def validate_span(self, span: Dict, text: str) -> bool:
+        stype = span.get("type")
+        stext = span.get("text", "").strip()
+        
+        if not stext or self.is_non_pii(stext):
+            return False
+
+        if stype == "FULL_NAME":
+            if len(stext.split()) < 2:
+                offset = span.get("start", 0)
+                preceding = text[max(0, offset - 12):offset].strip()
+                if not any(preceding.endswith(h) for h in ["Mr.", "Ms.", "Mrs.", "Dr.", "Prof.", "Shri", "Smt.", "Sri"]):
+                    return False
+            return True
+
+        elif stype == "COMPANY_NAME":
+            return bool(self.company_suffix_re.search(stext))
+
+        elif stype == "PHONE_NUMBER":
+            digits = re.sub(r'\D', '', stext)
+            return len(digits) >= 10
+
+        elif stype == "CREDIT_CARD":
+            digits = re.sub(r'\D', '', stext)
+            return 13 <= len(digits) <= 19 and luhn.is_valid(digits)
+
+        elif stype == "ADDRESS":
+            return len(stext) >= 8
+
+        return True
+
     def __init__(self, seed: int = 42):
         self.fake = Faker("en_US")
         Faker.seed(seed)
@@ -178,7 +209,7 @@ class PIIRedactor:
                     if not any(generic in ent_txt_upper for generic in ["CORPORATE OFFICE", "BANKING REGULATION", "CORPORATE GOVERNANCE", "REGISTRATION"]):
                         ner_spans.append({"start": ent.start_char, "end": ent.end_char, "text": ent.text, "type": "COMPANY_NAME", "priority": 5})
 
-        all_spans = [s for s in (regex_spans + ner_spans) if not self.is_non_pii(s["text"])]
+        all_spans = [s for s in (regex_spans + ner_spans) if self.validate_span(s, text)]
         return self._resolve_overlaps(all_spans)
 
     def _resolve_overlaps(self, spans: List[Dict]) -> List[Dict]:
