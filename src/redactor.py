@@ -147,6 +147,7 @@ class PIIRedactor:
         )
         self.company_suffix_re = re.compile(r'\b(?:PVT\.?|PRIVATE|LIMITED|LTD\.?|INC\.?|CORP\.?|CORPORATION|LLP|PLC)\b', re.I)
         self.honorific_name_re = re.compile(r'\b(?:Mr\.|Ms\.|Mrs\.|Dr\.|Prof\.|Shri|Smt\.|Sri)\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*)\b')
+        self.all_caps_name_re = re.compile(r'\b[A-Z]{2,}(?:\s+[A-Z]{2,}){1,3}\b')
 
     def detect_entities(self, text: str) -> List[Dict]:
         if not text or not text.strip():
@@ -233,6 +234,13 @@ class PIIRedactor:
             if not self.is_non_pii(name_part):
                 regex_spans.append({"start": m.start(1), "end": m.end(1), "text": name_part, "type": "FULL_NAME", "priority": 9})
 
+        # 10b. ALL-CAPS Multi-Word Name Extractor
+        for m in self.all_caps_name_re.finditer(text):
+            cand = m.group().strip()
+            if not self.is_non_pii(cand) and len(cand.split()) >= 2:
+                if not any(kw in cand for kw in ["SECTION", "TABLE", "DIRECTOR", "SECRETARY", "LIMITED", "COMPANY", "OFFER", "ISSUE", "BOARD", "REPORT", "PROSPECTUS", "GENERAL", "IDENTITY", "NUMBER", "CORPORATE", "REGISTERED", "OFFICE"]):
+                    regex_spans.append({"start": m.start(), "end": m.end(), "text": cand, "type": "FULL_NAME", "priority": 8})
+
         # 11. NER Spans (Lower priority)
         ner_spans = []
         doc = self.nlp(text)
@@ -245,17 +253,23 @@ class PIIRedactor:
                     start = ent.start_char
                     end = ent.end_char
                     
-                    # Expand leftward across preceding capitalized tokens
-                    prefix_text = text[:start]
-                    match_left = re.search(r'([A-Z][a-zA-Z]+\s+)$', prefix_text)
-                    if match_left and not self.is_non_pii(match_left.group(1).strip()):
-                        start -= len(match_left.group(1))
+                    # Iteratively expand leftward across adjacent capitalized tokens
+                    while True:
+                        prefix_text = text[:start]
+                        match_left = re.search(r'([A-Z][a-zA-Z0-9]+\s+)$', prefix_text)
+                        if match_left and not self.is_non_pii(match_left.group(1).strip()):
+                            start -= len(match_left.group(1))
+                        else:
+                            break
 
-                    # Expand rightward across following capitalized tokens
-                    suffix_text = text[end:]
-                    match_right = re.match(r'^(\s+[A-Z][a-zA-Z]+)', suffix_text)
-                    if match_right and not self.is_non_pii(match_right.group(1).strip()):
-                        end += len(match_right.group(1))
+                    # Iteratively expand rightward across adjacent capitalized tokens
+                    while True:
+                        suffix_text = text[end:]
+                        match_right = re.match(r'^(\s+[A-Z][a-zA-Z0-9]+)', suffix_text)
+                        if match_right and not self.is_non_pii(match_right.group(1).strip()):
+                            end += len(match_right.group(1))
+                        else:
+                            break
 
                     full_name_candidate = text[start:end].strip()
                     if not self.is_non_pii(full_name_candidate):
