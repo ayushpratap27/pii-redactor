@@ -283,11 +283,7 @@ st.markdown("""
 # 5. Clean File Upload Section & Secure Session Lifecycle
 uploaded_file = st.file_uploader("Select Microsoft Word Document (.docx) to Redact", type=["docx"])
 
-if uploaded_file is None:
-    # Reset in-memory session state when uploader is cleared
-    for k in ['redaction_stats', 'output_path', 'filename', 'input_path', 'redactor_instance']:
-        st.session_state.pop(k, None)
-else:
+if uploaded_file is not None:
     # Reset in-memory session state if a different file is selected
     if st.session_state.get('filename') and st.session_state.get('filename') != uploaded_file.name:
         for k in ['redaction_stats', 'output_path', 'filename', 'input_path', 'redactor_instance']:
