@@ -362,7 +362,7 @@ else:
                 frame = frames[step % len(frames)]
                 status_box.markdown(f"""
                 <div style="background:#EEF2FF; border:1px solid #C7D2FE; border-radius:10px; padding:12px 18px; text-align:center; color:#4F46E5; font-weight:700; font-family:'JetBrains Mono', monospace; font-size:0.92rem; margin-top:10px;">
-                    {frame} Redacting Document Process: Step {step}/{total} ({pct}%) &bull; {phase}
+                    {frame} Redacting Document Process: {pct}%
                 </div>
                 """, unsafe_allow_html=True)
 

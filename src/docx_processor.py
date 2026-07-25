@@ -45,9 +45,9 @@ class DocxProcessor:
         def default_terminal_callback(step: int, total: int, phase: str):
             if not self.verbose:
                 return
-            pct = (step / total) * 100
+            pct = int((step / total) * 100) if total > 0 else 100
             frame = self.SPINNER_FRAMES[step % len(self.SPINNER_FRAMES)]
-            sys.stdout.write(f"\r[{frame}] Redacting Document Process: Step {step}/{total} ({pct:.1f}%) | {phase}   ")
+            sys.stdout.write(f"\r[{frame}] Redacting Document Process: {pct}%   ")
             sys.stdout.flush()
             if step >= total:
                 sys.stdout.write("\n")
