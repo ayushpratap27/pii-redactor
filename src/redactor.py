@@ -152,7 +152,7 @@ class PIIRedactor:
             re.I
         )
         self.pincode_address_re = re.compile(
-            r'\b(?:(?:Flat|Plot|Floor|Door|Survey|House|Bldg|Building|Suite|F\.?No\.?|No\.?)\s+[\w\d\s.,/-]+,?\s+)*(?:\d{1,4}[,\s]+)?[\w\s.,-]{5,100}[,\s]+(?:\d{6}|[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s*-\s*\d{6})\b',
+            r'\b(?:(?:Flat|Plot|Floor|Door|Survey|Gat|House|Bldg|Building|Suite|Sector|Road|Street|Nagar|Industrial Area|MIDC|Taluka|District|P\.?O\.?|F\.?No\.?|No\.?)\s+[\w\d\s.,/-]+,?\s+)*(?:\d{1,4}[,\s]+)?[\w\s.,-]{5,120}[,\s]+(?:\d{6}|\d{3}\s*\d{3}|[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s*-\s*(?:\d{6}|\d{3}\s*\d{3}))(?:[,\s]+(?:Maharashtra|Gujarat|Karnataka|Tamil Nadu|Delhi|Haryana|Uttar Pradesh|West Bengal|Telangana|Andhra Pradesh|Rajasthan|Madhya Pradesh|Punjab|Kerala|Bihar|India))\b',
             re.I
         )
         self.company_suffix_re = re.compile(r'\b(?:PVT\.?|PRIVATE|LIMITED|LTD\.?|INC\.?|CORP\.?|CORPORATION|LLP|PLC)\b', re.I)
@@ -268,9 +268,18 @@ class PIIRedactor:
                     regex_spans.append({"start": idx, "end": idx + len(raw_addr), "text": raw_addr, "type": "ADDRESS", "priority": 9})
 
         for m in self.pincode_address_re.finditer(text):
-            raw_addr = m.group(0).strip()
+            start = m.start()
+            end = m.end()
+            while True:
+                prefix = text[:start]
+                match_prefix = re.search(r'((?:Flat|Plot|Floor|Door|Survey|Gat|House|Bldg|Building|Suite|Sector|Road|Street|Nagar|Industrial Area|MIDC|Taluka|District|No\.?)\s+[\w\d\s.,/-]{3,30}[,\s]+)$', prefix, re.I)
+                if match_prefix:
+                    start -= len(match_prefix.group(1))
+                else:
+                    break
+            raw_addr = text[start:end].strip()
             if not self.is_non_pii(raw_addr) and len(raw_addr) > 10:
-                regex_spans.append({"start": m.start(), "end": m.end(), "text": raw_addr, "type": "ADDRESS", "priority": 9})
+                regex_spans.append({"start": start, "end": end, "text": raw_addr, "type": "ADDRESS", "priority": 9})
 
         # 9. Promoters Context Heuristic
         m_prom = self.promoter_re.search(text)
@@ -459,7 +468,7 @@ class PIIRedactor:
             elif entity_type == "COMPANY_NAME":
                 replacement = self.fake.company().upper() if entity_text.isupper() else (self.fake.company().lower() if entity_text.islower() else self.fake.company())
             elif entity_type == "ADDRESS":
-                addr_val = f"{random.randint(10, 99)}, {self.fake.street_name()}, {self.fake.city()} - {random.randint(100000, 999999)}, India"
+                addr_val = f"Plot No. {random.randint(10, 99)}, {self.fake.street_name()}, MIDC Industrial Area, {self.fake.city()} - {random.randint(100000, 999999)}, Maharashtra, India"
                 replacement = addr_val.upper() if entity_text.isupper() else (addr_val.lower() if entity_text.islower() else addr_val)
             elif entity_type == "DATE_OF_BIRTH":
                 replacement = self._generate_synthetic_date(entity_text)
