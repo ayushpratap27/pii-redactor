@@ -66,7 +66,13 @@ class PIIRedactor:
         self.cin_re = re.compile(r'\b[U|L]\d{5}[A-Z]{2}\d{4}[A-Z]{3}\d{6}\b')
         self.din_re = re.compile(r'\b(?:DIN|DIN:)\s*\d{8}\b', re.I)
         self.promoter_re = re.compile(r'OUR PROMOTERS:\s*([^.\n]+)', re.I)
-        self.address_re = re.compile(r'(?:REGISTERED OFFICE|CORPORATE OFFICE):\s*([^.\n]+)', re.I)
+        self.address_re = re.compile(
+            r'(?:REGISTERED OFFICE|CORPORATE OFFICE):\s*([^\n\r]+?)(?=(?:\s+(?:Tel|Telephone|Email|Website|Fax|Contact|CIN|DIN):|\n|\r|$))',
+            re.I
+        )
+        self.pincode_address_re = re.compile(
+            r'\b(?:\d{1,4}[,\s]+[\w\s.,-]{5,100}[,\s]+(?:\d{6}|[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s*-\s*\d{6}))\b'
+        )
         self.company_suffix_re = re.compile(r'\b(?:PVT\.?|PRIVATE|LIMITED|LTD\.?|INC\.?|CORP\.?|CORPORATION|LLP|PLC)\b', re.I)
         self.honorific_name_re = re.compile(r'\b(?:Mr\.|Ms\.|Mrs\.|Dr\.|Prof\.|Shri|Smt\.|Sri)\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)*)\b')
 
@@ -116,13 +122,20 @@ class PIIRedactor:
         for m in self.din_re.finditer(text):
             regex_spans.append({"start": m.start(), "end": m.end(), "text": m.group(), "type": "CIN_DIN", "priority": 10})
 
-        # 8. Address Context Heuristic
+        # 8. Address Context Heuristics
         m_addr = self.address_re.search(text)
         if m_addr:
             raw_addr = m_addr.group(1).strip()
-            idx = text.find(raw_addr, m_addr.start(1))
-            if idx != -1:
-                regex_spans.append({"start": idx, "end": idx + len(raw_addr), "text": raw_addr, "type": "ADDRESS", "priority": 9})
+            raw_addr = re.sub(r'[\s.,;-]+(?:Tel|Telephone|Email|Website|Fax|Contact|CIN|DIN):?.*$', '', raw_addr, flags=re.I).strip()
+            if len(raw_addr) > 5:
+                idx = text.find(raw_addr, m_addr.start(1))
+                if idx != -1:
+                    regex_spans.append({"start": idx, "end": idx + len(raw_addr), "text": raw_addr, "type": "ADDRESS", "priority": 9})
+
+        for m in self.pincode_address_re.finditer(text):
+            raw_addr = m.group(0).strip()
+            if not self.is_non_pii(raw_addr) and len(raw_addr) > 10:
+                regex_spans.append({"start": m.start(), "end": m.end(), "text": raw_addr, "type": "ADDRESS", "priority": 9})
 
         # 9. Promoters Context Heuristic
         m_prom = self.promoter_re.search(text)
