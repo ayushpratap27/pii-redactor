@@ -1,7 +1,10 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import tempfile
 import os
 import sys
+import json
+import uuid
 import pandas as pd
 import docx
 import altair as alt
@@ -10,6 +13,10 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 
 from redactor import PIIRedactor
 from docx_processor import DocxProcessor
+
+# Global in-memory cache registry for active sessions
+if 'GLOBAL_SESSION_REGISTRY' not in globals():
+    GLOBAL_SESSION_REGISTRY = {}
 
 # 1. Page Configuration (Light Mode, No Sidebar)
 st.set_page_config(
@@ -232,11 +239,47 @@ st.markdown("""
 # Default Runtime Variables
 seed = 42
 
-# 3. Header Title & Subtitle
+# 3. Tab-Scoped sessionStorage Bridge for F5 Refresh Persistence
+tab_token = st.query_params.get("_s")
+
+# Inject JS bridge to restore tab token from sessionStorage on F5 refresh, and clean URL instantly
+components.html("""
+<script>
+(function() {
+    try {
+        const topWin = window.parent || window;
+        const cachedToken = topWin.sessionStorage.getItem('pii_tab_token');
+        const urlParams = new URLSearchParams(topWin.location.search);
+        
+        // If F5 refresh in existing tab and token is not in URL yet, inject _s param to restore state
+        if (cachedToken && !urlParams.has('_s')) {
+            urlParams.set('_s', cachedToken);
+            topWin.location.search = urlParams.toString();
+        } else if (urlParams.has('_s')) {
+            // Clean URL bar instantly so no token shows in address bar
+            const cleanUrl = topWin.location.pathname;
+            topWin.history.replaceState({}, '', cleanUrl);
+        }
+    } catch(e) {}
+})();
+</script>
+""", height=0, width=0)
+
+# Restore session state if tab_token matches active registry
+if 'redaction_stats' not in st.session_state and tab_token and tab_token in GLOBAL_SESSION_REGISTRY:
+    cached_session = GLOBAL_SESSION_REGISTRY[tab_token]
+    if os.path.exists(cached_session.get('output_path', '')):
+        st.session_state['redaction_stats'] = cached_session['redaction_stats']
+        st.session_state['output_path'] = cached_session['output_path']
+        st.session_state['filename'] = cached_session['filename']
+        st.session_state['input_path'] = cached_session.get('input_path', '')
+        st.session_state['redactor_instance'] = cached_session['redactor_instance']
+
+# 4. Header Title & Subtitle
 st.markdown('<div class="main-title">PII Redaction Tool</div>', unsafe_allow_html=True)
 st.markdown('<div class="main-subtitle">Layout-preserving DOCX AST parser with deterministic synthetic anonymization.</div>', unsafe_allow_html=True)
 
-# 4. 5-Step Workflow Bar Component
+# 5. 5-Step Workflow Bar Component
 st.markdown("""
 <div class="workflow-container">
     <div class="workflow-title">Redaction Workflow Pipeline</div>
@@ -280,10 +323,18 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# 5. Clean File Upload Section & Secure Session Lifecycle
+# 6. Clean File Upload Section & Secure Session Lifecycle
 uploaded_file = st.file_uploader("Select Microsoft Word Document (.docx) to Redact", type=["docx"])
 
-if uploaded_file is not None:
+if uploaded_file is None:
+    # Clear sessionStorage if user explicitly removed the uploaded file
+    if 'redaction_stats' not in st.session_state:
+        components.html("""
+        <script>
+        try { (window.parent || window).sessionStorage.removeItem('pii_tab_token'); } catch(e) {}
+        </script>
+        """, height=0, width=0)
+else:
     # Reset in-memory session state if a different file is selected
     if st.session_state.get('filename') and st.session_state.get('filename') != uploaded_file.name:
         for k in ['redaction_stats', 'output_path', 'filename', 'input_path', 'redactor_instance']:
@@ -306,13 +357,34 @@ if uploaded_file is not None:
                 processor = DocxProcessor(redactor=redactor)
                 stats = processor.process_document(input_path, output_path)
 
+            new_token = str(uuid.uuid4())[:12]
             st.session_state['redaction_stats'] = stats
             st.session_state['redactor_instance'] = redactor
             st.session_state['output_path'] = output_path
             st.session_state['filename'] = uploaded_file.name
             st.session_state['input_path'] = input_path
+            st.session_state['tab_token'] = new_token
 
-# 6. Streamlined Results Dashboard (Shown only for active session)
+            # Save in global in-memory registry for F5 tab refresh survival
+            GLOBAL_SESSION_REGISTRY[new_token] = {
+                'redaction_stats': stats,
+                'redactor_instance': redactor,
+                'output_path': output_path,
+                'filename': uploaded_file.name,
+                'input_path': input_path
+            }
+
+            # Save token to this browser tab's sessionStorage
+            components.html(f"""
+            <script>
+            try {{
+                const topWin = window.parent || window;
+                topWin.sessionStorage.setItem('pii_tab_token', '{new_token}');
+            }} catch(e) {{}}
+            </script>
+            """, height=0, width=0)
+
+# 7. Streamlined Results Dashboard (Shown for active session or restored F5 tab session)
 if 'redaction_stats' in st.session_state:
     stats = st.session_state['redaction_stats']
     redactor = st.session_state['redactor_instance']
@@ -403,7 +475,7 @@ if 'redaction_stats' in st.session_state:
                 use_container_width=True
             )
 
-# 7. Footer Component
+# 8. Footer Component
 st.markdown("<br><br>", unsafe_allow_html=True)
 st.markdown("""
 <div style="text-align: center; color: #64748B; font-size: 0.8rem; border-top: 1px solid #E2E8F0; padding-top: 20px;">
