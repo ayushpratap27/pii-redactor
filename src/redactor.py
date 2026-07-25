@@ -203,12 +203,21 @@ class PIIRedactor:
             ent_txt_upper = ent.text.strip().upper()
             if ent.label_ == "PERSON" and len(ent.text.strip()) > 2:
                 if not any(kw in ent_txt_upper for kw in ["SSN", "TAX", "ID", "TALUKA"]):
-                    # Expand contiguous capitalized tokens to avoid partial name replacements
                     start = ent.start_char
                     end = ent.end_char
-                    match_right = re.match(r'^(\s+[A-Z][a-zA-Z]+)', text[end:])
-                    if match_right:
+                    
+                    # Expand leftward across preceding capitalized tokens
+                    prefix_text = text[:start]
+                    match_left = re.search(r'([A-Z][a-zA-Z]+\s+)$', prefix_text)
+                    if match_left and not self.is_non_pii(match_left.group(1).strip()):
+                        start -= len(match_left.group(1))
+
+                    # Expand rightward across following capitalized tokens
+                    suffix_text = text[end:]
+                    match_right = re.match(r'^(\s+[A-Z][a-zA-Z]+)', suffix_text)
+                    if match_right and not self.is_non_pii(match_right.group(1).strip()):
                         end += len(match_right.group(1))
+
                     full_name_candidate = text[start:end].strip()
                     if not self.is_non_pii(full_name_candidate):
                         ner_spans.append({"start": start, "end": end, "text": full_name_candidate, "type": "FULL_NAME", "priority": 5})
