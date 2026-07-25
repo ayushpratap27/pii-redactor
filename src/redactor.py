@@ -33,10 +33,17 @@ class PIIRedactor:
         "UNLISTED COMPANY", "COMPANY LIMITED", "HOLDING COMPANY", "SUBSIDIARY COMPANY"
     }
 
+    REGULATORY_DOMAINS = {
+        "sebi.gov.in", "bseindia.com", "nseindia.com", "mca.gov.in", "rbi.org.in", "india.gov.in"
+    }
+
     def is_non_pii(self, text: str) -> bool:
         clean = re.sub(r'^\W+|\W+$', '', text.strip().upper())
         if not clean:
             return True
+        for domain in self.REGULATORY_DOMAINS:
+            if domain in text.lower():
+                return True
         if clean in self.NON_PII_WORDS:
             return True
         clean_norm = re.sub(r'[/\\_-]', ' ', clean)
@@ -80,6 +87,9 @@ class PIIRedactor:
         elif stype == "ADDRESS":
             return len(stext) >= 8
 
+        elif stype == "WEBSITE_URL":
+            return not self.is_non_pii(stext)
+
         return True
 
     def __init__(self, seed: int = 42):
@@ -100,6 +110,7 @@ class PIIRedactor:
 
         # Compile regexes
         self.email_re = re.compile(r'\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b', re.I)
+        self.url_re = re.compile(r'\b(?:https?://|www\.)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:/[^\s]*)?\b', re.I)
         self.ssn_re = re.compile(r'\b(?!000|666|9\d{2})\d{3}[-\s]?(?!00)\d{2}[-\s]?(?!0000)\d{4}\b')
         self.pan_re = re.compile(r'\b[A-Z]{5}[0-9]{4}[A-Z]{1}\b')
         self.card_re = re.compile(r'\b(?:\d[ -]*?){13,19}\b')
@@ -130,6 +141,12 @@ class PIIRedactor:
         # 1. Emails
         for m in self.email_re.finditer(text):
             regex_spans.append({"start": m.start(), "end": m.end(), "text": m.group(), "type": "EMAIL", "priority": 10})
+
+        # 1b. Website URLs
+        for m in self.url_re.finditer(text):
+            url_txt = m.group().strip()
+            if not self.is_non_pii(url_txt):
+                regex_spans.append({"start": m.start(), "end": m.end(), "text": url_txt, "type": "WEBSITE_URL", "priority": 10})
 
         # 2. Phone Numbers
         for match in phonenumbers.PhoneNumberMatcher(text, "IN"):
@@ -323,6 +340,9 @@ class PIIRedactor:
                     synthetic = f"{random.randint(10000000, 99999999)}"
             else:
                 synthetic = f"U{random.randint(10000, 99999)}MH2000PLC{random.randint(100000, 999999)}"
+        elif entity_type == "WEBSITE_URL":
+            url_val = "www.anonymized-domain.com"
+            synthetic = url_val.upper() if entity_text.isupper() else url_val.lower()
         else:
             synthetic = f"[REDACTED_{entity_type}]"
 
