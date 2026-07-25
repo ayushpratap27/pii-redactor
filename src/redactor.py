@@ -112,7 +112,7 @@ class PIIRedactor:
         self.din_re = re.compile(r'\b(?:DIN|DIN:)\s*\d{8}\b', re.I)
         self.promoter_re = re.compile(r'OUR PROMOTERS:\s*([^.\n]+)', re.I)
         self.address_re = re.compile(
-            r'(?:REGISTERED OFFICE|CORPORATE OFFICE):\s*([^\n\r]+?)(?=(?:\s+(?:Tel|Telephone|Email|Website|Fax|Contact|CIN|DIN):|\n|\r|$))',
+            r'(?:REGISTERED AND CORPORATE OFFICE|REGISTERED OFFICE|CORPORATE OFFICE|HEAD OFFICE|BRANCH OFFICE|OFFICE OF THE REGISTRAR|PRINCIPAL PLACE OF BUSINESS):\s*([^\n\r]+?)(?=(?:\s+(?:Tel|Telephone|Email|Website|Fax|Contact|CIN|DIN):|\n|\r|$))',
             re.I
         )
         self.pincode_address_re = re.compile(
